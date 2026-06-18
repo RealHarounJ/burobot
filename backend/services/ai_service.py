@@ -122,7 +122,34 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
             raw = raw[4:]
     raw = raw.strip()
 
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except Exception as e:
+        print("--- PARSING ERROR RAW CONTENT START ---")
+        print(raw)
+        print("--- PARSING ERROR RAW CONTENT END ---")
+        try:
+            sanitized = []
+            in_string = False
+            escape = False
+            for char in raw:
+                if char == '"' and not escape:
+                    in_string = not in_string
+                if char == '\\' and not escape:
+                    escape = True
+                else:
+                    escape = False
+                
+                if char == '\n' and in_string:
+                    sanitized.append('\\n')
+                elif char == '\r' and in_string:
+                    continue
+                else:
+                    sanitized.append(char)
+            cleaned_raw = "".join(sanitized)
+            return json.loads(cleaned_raw)
+        except Exception as e2:
+            raise ValueError(f"Impossibile analizzare la risposta dell'AI come JSON: {e}")
 
 
 async def generate_response_letter(
