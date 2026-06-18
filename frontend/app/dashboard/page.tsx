@@ -59,6 +59,12 @@ export default function Dashboard() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes("xxxx.supabase.co")) {
+      setError("Attenzione: Le chiavi di Supabase non sono ancora state configurate nelle variabili d'ambiente di Vercel. La dashboard non funzionerà.");
+      return;
+    }
+
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {

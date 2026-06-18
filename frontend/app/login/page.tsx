@@ -16,8 +16,14 @@ function LoginForm() {
 
   const redirectUrl = searchParams.get("redirect") || "/dashboard";
 
-  // Check if already logged in
+  // Check if already logged in and warn if configuration is missing
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes("xxxx.supabase.co")) {
+      setError("Attenzione: Le chiavi di Supabase non sono ancora state configurate nelle variabili d'ambiente di Vercel. Il login non funzionerà.");
+      return;
+    }
+
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
