@@ -8,6 +8,7 @@ from pydantic import BaseModel
 import stripe
 import os
 from supabase import create_client
+from dependencies import get_current_user
 
 router = APIRouter()
 
@@ -29,18 +30,6 @@ PLAN_NAMES = {
     "pmi": "BuroBot PMI",
     "studio": "BuroBot Studio",
 }
-
-
-async def get_current_user(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token mancante")
-    token = authorization.split(" ")[1]
-    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    try:
-        user = supabase.auth.get_user(token)
-        return user.user
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token non valido")
 
 
 class CheckoutRequest(BaseModel):

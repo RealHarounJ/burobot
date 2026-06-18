@@ -1,27 +1,24 @@
 """
-BuroBot — AI Service
-Gestisce le chiamate a GPT-4o mini e la pipeline RAG con LlamaIndex.
+BuroBot — AI Service (Google Gemini)
+Gestisce le chiamate a Gemini 1.5 Flash e la pipeline RAG con LlamaIndex.
 """
 
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI as LlamaOpenAI
+import asyncio
 import os
+import json
 from pathlib import Path
 
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# Configura LlamaIndex con GPT-4o mini
-Settings.llm = LlamaOpenAI(model="gpt-4o-mini", temperature=0.1)
-Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
-Settings.node_parser = SentenceSplitter(chunk_size=512, chunk_overlap=50)
-
-# Cache dell'indice RAG (caricato una volta all'avvio)
-_rag_index = None
+# Configura Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge_base"
+
+# Cache indice RAG
+_rag_index = None
 
 SYSTEM_PROMPT = """Sei BuroBot, un assistente esperto in burocrazia italiana.
 Il tuo compito è analizzare documenti burocratici italiani e spiegare:
@@ -57,63 +54,67 @@ def get_rag_index():
     return _rag_index
 
 
-async def analyze_document(text: str, document_type: str = "generico") -> dict:
-    """
-    Analizza un documento burocratico usando GPT-4o mini + RAG.
-    
-    Args:
-        text: Testo estratto dal documento
-        document_type: Tipo di documento (es. "inps", "agenzia_entrate", "isee")
-    
-    Returns:
-        dict con spiegazione, azioni richieste, scadenza, urgenza
-    """
-    
-    # Prova prima con RAG se disponibile
-    rag_context = ""
-    rag_index = get_rag_index()
-    if rag_index:
-        try:
-            query_engine = rag_index.as_query_engine(similarity_top_k=3)
-            rag_result = query_engine.query(
-                f"Informazioni su documenti di tipo {document_type} e come rispondere"
-            )
-            rag_context = f"\n\nContesto normativo di riferimento:\n{rag_result}"
-        except Exception:
-            pass
+def _build_analyze_prompt(text: str, rag_context: str = "") -> str:
+    return f"""{SYSTEM_PROMPT}
 
-    user_message = f"""Analizza questo documento burocratico italiano:
-
----DOCUMENTO---
-{text[:4000]}  
----FINE DOCUMENTO---
-{rag_context}
-
-Fornisci la risposta in questo formato JSON:
+Analizza questo documento burocratico italiano e rispondi SOLO con un JSON valido nel seguente formato:
 {{
   "tipo_documento": "nome del tipo di documento identificato",
   "spiegazione": "spiegazione in linguaggio semplice (max 3 paragrafi)",
   "scadenza": "data scadenza o null se non presente",
   "importo": "importo in euro o null se non presente",
-  "azioni": ["azione 1", "azione 2", "..."],
-  "urgenza": "alta/media/bassa",
-  "genera_risposta": true/false
-}}"""
+  "azioni": ["azione 1", "azione 2"],
+  "urgenza": "alta|media|bassa",
+  "genera_risposta": true
+}}
 
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.1,
-        max_tokens=1500
+---DOCUMENTO---
+{text[:4000]}
+---FINE DOCUMENTO---
+{rag_context}
+
+Rispondi SOLO con il JSON, nessun testo aggiuntivo."""
+
+
+async def analyze_document(text: str, document_type: str = "generico") -> dict:
+    """
+    Analizza un documento burocratico usando Gemini 1.5 Flash + RAG.
+    """
+    # Contesto RAG se disponibile
+    rag_context = ""
+    rag_index = get_rag_index()
+    if rag_index:
+        try:
+            query_engine = rag_index.as_query_engine(similarity_top_k=3)
+            rag_result = await asyncio.to_thread(
+                query_engine.query,
+                f"Informazioni su documenti di tipo {document_type} e come rispondere"
+            )
+            rag_context = f"\n\nContesto normativo:\n{rag_result}"
+        except Exception:
+            pass
+
+    prompt = _build_analyze_prompt(text, rag_context)
+
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=1500,
+        )
     )
 
-    import json
-    result = json.loads(response.choices[0].message.content)
-    return result
+    response = await asyncio.to_thread(model.generate_content, prompt)
+    raw = response.text.strip()
+
+    # Pulisci eventuali markdown code blocks
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
+    return json.loads(raw)
 
 
 async def generate_response_letter(
@@ -121,19 +122,11 @@ async def generate_response_letter(
     user_situation: str,
     response_type: str = "contestazione"
 ) -> str:
-    """
-    Genera una lettera di risposta/ricorso formale.
-    
-    Args:
-        document_text: Testo del documento originale
-        user_situation: Situazione specifica dell'utente
-        response_type: Tipo di risposta (contestazione, pagamento, chiarimento)
-    
-    Returns:
-        Testo della lettera formale
-    """
-    
-    prompt = f"""Genera una lettera formale di {response_type} in risposta a questo documento:
+    """Genera una lettera di risposta/ricorso formale."""
+
+    prompt = f"""Sei un esperto legale italiano specializzato in diritto amministrativo e tributario.
+
+Genera una lettera formale di {response_type} in risposta a questo documento:
 
 DOCUMENTO ORIGINALE:
 {document_text[:2000]}
@@ -142,20 +135,38 @@ SITUAZIONE DELL'UTENTE:
 {user_situation}
 
 La lettera deve essere:
-- Formale e professionale
-- In italiano corretto
-- Con tutti gli elementi necessari (oggetto, mittente placeholder, data, firma)
-- Chiara e concisa
-- Efficace legalmente"""
+- Formale e professionale, in italiano corretto
+- Con tutti gli elementi necessari (oggetto, mittente [DA COMPILARE], data odierna, firma)
+- Chiara, concisa ed efficace legalmente
+- Indirizzata all'ente corretto identificato nel documento
 
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Sei un esperto legale italiano specializzato in diritto amministrativo e tributario. Scrivi lettere formali efficaci."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2,
-        max_tokens=2000
+Scrivi solo la lettera, senza commenti aggiuntivi."""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=2000)
     )
 
-    return response.choices[0].message.content
+    response = await asyncio.to_thread(model.generate_content, prompt)
+    return response.text
+
+
+async def chat_with_ai(message: str, context: str = "") -> str:
+    """Chat libera per domande burocratiche generali."""
+
+    prompt = f"""{SYSTEM_PROMPT}
+
+L'utente ti pone questa domanda sulla burocrazia italiana:
+{message}
+
+{f"Contesto aggiuntivo: {context}" if context else ""}
+
+Rispondi in modo chiaro, utile e in italiano. Usa emoji per rendere la risposta più leggibile."""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=1000)
+    )
+
+    response = await asyncio.to_thread(model.generate_content, prompt)
+    return response.text
