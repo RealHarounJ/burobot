@@ -6,6 +6,7 @@ Gestisce le chiamate a Gemini 1.5 Flash e la pipeline RAG con LlamaIndex.
 import google.generativeai as genai
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
 from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.embeddings import MockEmbedding
 import asyncio
 import os
 import json
@@ -17,8 +18,8 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge_base"
 
-# Forza LlamaIndex a usare embedding locali per evitare requisiti di chiavi OpenAI
-Settings.embed_model = "local"
+# Usa MockEmbedding per evitare requisiti di pacchetti esterni (es. HuggingFace) e velocizzare l'avvio
+Settings.embed_model = MockEmbedding(embed_dim=1536)
 
 # Cache indice RAG
 _rag_index = None
