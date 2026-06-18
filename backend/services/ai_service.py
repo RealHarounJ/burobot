@@ -108,6 +108,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=1500,
+            response_mime_type="application/json",
         )
     )
 
