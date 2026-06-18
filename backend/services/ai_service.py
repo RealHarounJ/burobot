@@ -104,7 +104,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     prompt = _build_analyze_prompt(text, rag_context)
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=1500,
@@ -150,7 +150,7 @@ La lettera deve essere:
 Scrivi solo la lettera, senza commenti aggiuntivi."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=2000)
     )
 
@@ -171,7 +171,7 @@ L'utente ti pone questa domanda sulla burocrazia italiana:
 Rispondi in modo chiaro, utile e in italiano. Usa emoji per rendere la risposta più leggibile."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=1000)
     )
 
