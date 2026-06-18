@@ -19,13 +19,15 @@ app = FastAPI(
 )
 
 # CORS — consenti richieste dal frontend Next.js
+origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    origins.append(frontend_url.rstrip("/"))
+origins.extend(["https://burobot.it", "https://www.burobot.it"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("FRONTEND_URL", "http://localhost:3000"),
-        "https://burobot.it",
-        "https://www.burobot.it",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
