@@ -17,6 +17,9 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge_base"
 
+# Forza LlamaIndex a usare embedding locali per evitare requisiti di chiavi OpenAI
+Settings.embed_model = "local"
+
 # Cache indice RAG
 _rag_index = None
 
@@ -85,19 +88,22 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     rag_index = get_rag_index()
     if rag_index:
         try:
-            query_engine = rag_index.as_query_engine(similarity_top_k=3)
-            rag_result = await asyncio.to_thread(
-                query_engine.query,
+            # Usa retriever semantico locale (evita chiamate LLM esterne ad OpenAI)
+            retriever = rag_index.as_retriever(similarity_top_k=2)
+            nodes = await asyncio.to_thread(
+                retriever.retrieve,
                 f"Informazioni su documenti di tipo {document_type} e come rispondere"
             )
-            rag_context = f"\n\nContesto normativo:\n{rag_result}"
-        except Exception:
-            pass
+            context_texts = [n.node.get_content() for n in nodes]
+            if context_texts:
+                rag_context = "\n\nContesto normativo:\n" + "\n---\n".join(context_texts)
+        except Exception as e:
+            print(f"Errore RAG: {e}")
 
     prompt = _build_analyze_prompt(text, rag_context)
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.0-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=1500,
@@ -143,7 +149,7 @@ La lettera deve essere:
 Scrivi solo la lettera, senza commenti aggiuntivi."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.0-flash",
         generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=2000)
     )
 
@@ -164,7 +170,7 @@ L'utente ti pone questa domanda sulla burocrazia italiana:
 Rispondi in modo chiaro, utile e in italiano. Usa emoji per rendere la risposta più leggibile."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-2.0-flash",
         generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=1000)
     )
 

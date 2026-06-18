@@ -22,7 +22,7 @@ async def extract_text_from_image(image_bytes: bytes) -> str:
     try:
         image = Image.open(io.BytesIO(image_bytes))
 
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         prompt = (
             "Estrai tutto il testo presente in questa immagine di un documento burocratico italiano. "
             "Mantieni la struttura originale con a capo e spazi. "
