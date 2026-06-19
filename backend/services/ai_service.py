@@ -113,7 +113,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     prompt = _build_analyze_prompt(text, rag_context)
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-flash-latest",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=2048,
@@ -142,6 +142,9 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
         if match:
             raw = match.group(1)
     raw = raw.strip()
+
+    # Sostituisci apostrofi escaped (invalidi in JSON)
+    raw = raw.replace(r"\'", "'").replace("\\'", "'")
 
     # Strategia 1: parse diretto
     try:
@@ -183,7 +186,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
 {text[:1000]}
 JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":null,"importo":null,"azioni":["Leggi il documento"],"urgenza":"media","genera_risposta":false}}"""
         fallback_model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
+            model_name="gemini-flash-latest",
             generation_config=genai.GenerationConfig(
                 temperature=0,
                 max_output_tokens=512,
@@ -194,7 +197,14 @@ JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":null,"importo":null,"a
         fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
         if not fb_resp.candidates:
             raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
-        return json.loads(fb_resp.text.strip())
+        fb_raw = fb_resp.text.strip()
+        if "```" in fb_raw:
+            import re
+            match = re.search(r'```(?:json)?\s*({.*?})\s*```', fb_raw, re.DOTALL)
+            if match:
+                fb_raw = match.group(1)
+        fb_raw = fb_raw.strip().replace(r"\'", "'").replace("\\'", "'")
+        return json.loads(fb_raw)
     except Exception as final_err:
         err_msg = str(final_err)
         if "429" in err_msg or "quota" in err_msg.lower():
@@ -228,7 +238,7 @@ La lettera deve essere:
 Scrivi solo la lettera, senza commenti aggiuntivi."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-flash-latest",
         generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=2000)
     )
 
@@ -249,7 +259,7 @@ L'utente ti pone questa domanda sulla burocrazia italiana:
 Rispondi in modo chiaro, utile e in italiano. Usa emoji per rendere la risposta più leggibile."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-flash-latest",
         generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=1000)
     )
 
