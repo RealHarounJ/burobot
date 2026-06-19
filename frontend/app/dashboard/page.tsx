@@ -601,8 +601,8 @@ export default function Dashboard() {
                           <p style={{ fontWeight: 600, color: "var(--text-main)", fontSize: "var(--font-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "170px" }}>
                             {doc.file_name}
                           </p>
-                          <span className={`urgency-${doc.analysis.urgenza}`}>
-                            {doc.analysis.urgenza}
+                          <span className={`urgency-${(doc.analysis?.urgenza || "bassa").toLowerCase()}`}>
+                            {doc.analysis?.urgenza || "bassa"}
                           </span>
                         </div>
                         <p style={{ fontSize: "var(--font-xs)", color: "var(--text-dim)", marginTop: "4px" }}>
@@ -617,73 +617,82 @@ export default function Dashboard() {
 
             {/* RIGHT: Results */}
             <div style={{ minHeight: "500px" }}>
-              {selectedDoc ? (
-                <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+              {selectedDoc ? (() => {
+                const rawUrgency = selectedDoc.analysis?.urgenza || "bassa";
+                const urgency = rawUrgency.toLowerCase();
+                const uLabel = urgencyLabel[urgency] || urgencyLabel.bassa;
+                const scadenza = selectedDoc.analysis?.scadenza;
+                const importo = selectedDoc.analysis?.importo;
+                const spiegazione = selectedDoc.analysis?.spiegazione || "Nessuna spiegazione disponibile.";
+                const azioni = selectedDoc.analysis?.azioni || [];
 
-                  {/* Header */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "20px" }}>
-                    <div style={{ flex: 1 }}>
-                      <span className="badge" style={{ marginBottom: "8px" }}>{selectedDoc.document_type}</span>
-                      <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginTop: "6px", wordBreak: "break-word" }}>{selectedDoc.file_name}</h2>
+                return (
+                  <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "20px" }}>
+                      <div style={{ flex: 1 }}>
+                        <span className="badge" style={{ marginBottom: "8px" }}>{selectedDoc.document_type}</span>
+                        <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginTop: "6px", wordBreak: "break-word" }}>{selectedDoc.file_name}</h2>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                        <span className={`urgency-${urgency}`}>
+                          {uLabel.label}
+                        </span>
+                        {/* Export PDF — tutti i piani */}
+                        <button
+                          onClick={handleExportPDF}
+                          disabled={exportingPdf}
+                          className="btn-secondary"
+                          style={{ padding: "8px 14px", fontSize: "var(--font-xs)" }}
+                          title="Scarica analisi in PDF"
+                        >
+                          {exportingPdf ? <div className="spinner" style={{ width: 14, height: 14 }} /> : "📄 PDF"}
+                        </button>
+                        <button onClick={handleReset} className="btn-secondary" style={{ padding: "8px 12px", fontSize: "var(--font-xs)" }}>✕ Chiudi</button>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                      <span className={`urgency-${selectedDoc.analysis.urgenza}`}>
-                        {urgencyLabel[selectedDoc.analysis.urgenza]?.label}
-                      </span>
-                      {/* Export PDF — tutti i piani */}
-                      <button
-                        onClick={handleExportPDF}
-                        disabled={exportingPdf}
-                        className="btn-secondary"
-                        style={{ padding: "8px 14px", fontSize: "var(--font-xs)" }}
-                        title="Scarica analisi in PDF"
-                      >
-                        {exportingPdf ? <div className="spinner" style={{ width: 14, height: 14 }} /> : "📄 PDF"}
-                      </button>
-                      <button onClick={handleReset} className="btn-secondary" style={{ padding: "8px 12px", fontSize: "var(--font-xs)" }}>✕ Chiudi</button>
+
+                    {/* Scadenza + Importo */}
+                    {(scadenza || importo) && (
+                      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                        {scadenza && (
+                          <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>⏰ Scadenza</p>
+                            <p style={{ fontWeight: 800, color: "#fbbf24", fontSize: "var(--font-lg)" }}>{scadenza}</p>
+                          </div>
+                        )}
+                        {importo && (
+                          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>💶 Importo</p>
+                            <p style={{ fontWeight: 800, color: "#f87171", fontSize: "var(--font-lg)" }}>{importo}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Spiegazione */}
+                    <div>
+                      <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        📖 Cosa significa questo documento
+                      </h3>
+                      <p style={{ color: "#cbd5e1", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{spiegazione}</p>
                     </div>
-                  </div>
 
-                  {/* Scadenza + Importo */}
-                  {(selectedDoc.analysis.scadenza || selectedDoc.analysis.importo) && (
-                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      {selectedDoc.analysis.scadenza && (
-                        <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
-                          <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>⏰ Scadenza</p>
-                          <p style={{ fontWeight: 800, color: "#fbbf24", fontSize: "var(--font-lg)" }}>{selectedDoc.analysis.scadenza}</p>
-                        </div>
-                      )}
-                      {selectedDoc.analysis.importo && (
-                        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
-                          <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>💶 Importo</p>
-                          <p style={{ fontWeight: 800, color: "#f87171", fontSize: "var(--font-lg)" }}>{selectedDoc.analysis.importo}</p>
-                        </div>
-                      )}
+                    {/* Azioni */}
+                    <div>
+                      <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
+                        ✅ Cosa devi fare {easyMode ? "ADESSO" : "ora"}
+                      </h3>
+                      <ol style={{ paddingLeft: "0", display: "flex", flexDirection: "column", gap: "10px", listStyle: "none" }}>
+                        {azioni.map((a, i) => (
+                          <li key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", background: "rgba(99,102,241,0.05)", borderRadius: "var(--radius-md)", padding: "12px 16px" }}>
+                            <span style={{ background: "var(--primary)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "var(--font-xs)", flexShrink: 0 }}>{i + 1}</span>
+                            <span style={{ color: "#cbd5e1", lineHeight: 1.6, fontSize: "var(--font-base)" }}>{a}</span>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
-                  )}
-
-                  {/* Spiegazione */}
-                  <div>
-                    <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📖 Cosa significa questo documento
-                    </h3>
-                    <p style={{ color: "#cbd5e1", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{selectedDoc.analysis.spiegazione}</p>
-                  </div>
-
-                  {/* Azioni */}
-                  <div>
-                    <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      ✅ Cosa devi fare {easyMode ? "ADESSO" : "ora"}
-                    </h3>
-                    <ol style={{ paddingLeft: "0", display: "flex", flexDirection: "column", gap: "10px", listStyle: "none" }}>
-                      {selectedDoc.analysis.azioni.map((a, i) => (
-                        <li key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", background: "rgba(99,102,241,0.05)", borderRadius: "var(--radius-md)", padding: "12px 16px" }}>
-                          <span style={{ background: "var(--primary)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "var(--font-xs)", flexShrink: 0 }}>{i + 1}</span>
-                          <span style={{ color: "#cbd5e1", lineHeight: 1.6, fontSize: "var(--font-base)" }}>{a}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
 
                   <hr className="section-divider" />
 
@@ -771,8 +780,9 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                </div>
-              ) : (
+                  </div>
+                );
+              })() : (
                 <div className="glass-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 40px", minHeight: "500px", textAlign: "center" }}>
                   <div style={{ fontSize: "5rem", marginBottom: "20px" }}>🤖</div>
                   <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "12px" }}>
