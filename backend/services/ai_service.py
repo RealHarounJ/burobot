@@ -11,6 +11,18 @@ import asyncio
 import os
 import json
 from pathlib import Path
+from pydantic import BaseModel
+from typing import List, Optional
+
+class DocumentAnalysis(BaseModel):
+    tipo_documento: str
+    spiegazione: str
+    scadenza: Optional[str]
+    importo: Optional[str]
+    azioni: List[str]
+    urgenza: str
+    genera_risposta: bool
+
 
 # Configura Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
@@ -106,11 +118,22 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
             temperature=0.1,
             max_output_tokens=2048,
             response_mime_type="application/json",
+            response_schema=DocumentAnalysis,
         )
     )
 
-    response = await asyncio.to_thread(model.generate_content, prompt)
-    raw = response.text.strip()
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        if not response.candidates:
+            raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
+        raw = response.text.strip()
+    except Exception as e:
+        err_msg = str(e)
+        if "429" in err_msg or "quota" in err_msg.lower():
+            raise ValueError("Quota dell'intelligenza artificiale superata. Si prega di riprovare tra un minuto.")
+        if "blocked" in err_msg.lower() or "safety" in err_msg.lower():
+            raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
+        raise ValueError(f"Errore durante l'analisi del documento: {err_msg}")
 
     # Rimuovi eventuali markdown code blocks
     if "```" in raw:
@@ -165,11 +188,17 @@ JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":null,"importo":null,"a
                 temperature=0,
                 max_output_tokens=512,
                 response_mime_type="application/json",
+                response_schema=DocumentAnalysis,
             )
         )
         fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
+        if not fb_resp.candidates:
+            raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
         return json.loads(fb_resp.text.strip())
     except Exception as final_err:
+        err_msg = str(final_err)
+        if "429" in err_msg or "quota" in err_msg.lower():
+            raise ValueError("Quota dell'intelligenza artificiale superata. Si prega di riprovare tra un minuto.")
         raise ValueError(f"Impossibile analizzare la risposta AI. Errore finale: {final_err}")
 
 
