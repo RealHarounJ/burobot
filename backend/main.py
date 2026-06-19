@@ -44,6 +44,15 @@ async def root():
     return {"status": "ok", "service": "BuroBot API", "version": "1.0.0"}
 
 
+@app.get("/api/debug/cors")
+async def debug_cors():
+    import os
+    return {
+        "FRONTEND_URL": os.getenv("FRONTEND_URL"),
+        "origins": origins
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
