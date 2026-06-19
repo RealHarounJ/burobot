@@ -57,7 +57,17 @@ async def global_exception_handler(request, exc):
     )
 
 
-@app.get("/health")
+@app.get("/api/secure-debug-env")
+async def secure_debug_env(secret: str = ""):
+    if secret != "burobot_debug_secret_9988":
+        return {"status": "unauthorized"}
+    import os
+    return {
+        "SUPABASE_URL": os.getenv("SUPABASE_URL"),
+        "SUPABASE_SERVICE_KEY_LEN": len(os.getenv("SUPABASE_SERVICE_KEY", "")),
+        "GEMINI_API_KEY_LEN": len(os.getenv("GEMINI_API_KEY", "")),
+        "FRONTEND_URL": os.getenv("FRONTEND_URL")
+    }
 async def health():
     return {"status": "healthy"}
 
