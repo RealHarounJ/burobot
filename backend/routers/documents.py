@@ -25,11 +25,25 @@ def get_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
-async def check_usage_limit(user_id: str, supabase: Client):
+async def check_usage_limit(user_id: str, supabase: Client, email: str = ""):
     """Controlla se l'utente free ha superato il limite mensile."""
     from datetime import datetime, timezone
-    profile = supabase.table("profiles").select("plan").eq("id", user_id).single().execute()
-    plan = profile.data.get("plan", "free") if profile.data else "free"
+    
+    try:
+        profile = supabase.table("profiles").select("plan").eq("id", user_id).single().execute()
+        plan = profile.data.get("plan", "free") if (profile and profile.data) else "free"
+    except Exception:
+        # Se il profilo non esiste nel database (es. trigger non eseguito), lo creiamo on-the-fly
+        try:
+            supabase.table("profiles").insert({
+                "id": user_id,
+                "email": email,
+                "plan": "free"
+            }).execute()
+        except Exception as insert_err:
+            print(f"Errore creazione profilo on-the-fly: {insert_err}")
+        plan = "free"
+        
     if plan != "free":
         return True
 
@@ -64,7 +78,7 @@ async def analyze_document_endpoint(
 ):
     """Riceve un file, estrae il testo e lo analizza con AI."""
     supabase = get_supabase()
-    await check_usage_limit(user.id, supabase)
+    await check_usage_limit(user.id, supabase, getattr(user, "email", ""))
 
     allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
     if file.content_type not in allowed_types:
