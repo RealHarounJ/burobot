@@ -3,7 +3,8 @@ BuroBot — FastAPI Backend
 Entry point principale dell'applicazione.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -42,6 +43,18 @@ app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "BuroBot API", "version": "1.0.0"}
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    print("--- UNHANDLED EXCEPTION TRACEBACK ---")
+    traceback.print_exception(type(exc), exc, exc.__traceback__)
+    print("-------------------------------------")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Errore interno del server: {str(exc)}"}
+    )
 
 
 @app.get("/health")
