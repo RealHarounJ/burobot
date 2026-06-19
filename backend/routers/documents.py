@@ -21,7 +21,8 @@ FREE_PLAN_LIMIT = 3
 # Email degli amministratori — hanno accesso illimitato senza pagare
 ADMIN_EMAILS = {
     os.getenv("ADMIN_EMAIL", "").strip().lower(),
-    "haroun@burobot.it",   # aggiungi qui la tua email
+    "harounjaafar3@gmail.com",  # proprietario — accesso illimitato
+    "haroun@burobot.it",
 }
 
 
