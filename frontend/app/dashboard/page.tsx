@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient, signOut } from "@/lib/supabase";
 import { api } from "@/lib/api";
 
+/* ─────────── TYPES ─────────── */
 interface Analysis {
   tipo_documento: string;
   spiegazione: string;
@@ -16,13 +17,6 @@ interface Analysis {
   genera_risposta?: boolean;
 }
 
-interface ResponseLetter {
-  id: string;
-  response_type: string;
-  letter_text: string;
-  created_at: string;
-}
-
 interface Document {
   id: string;
   file_name: string;
@@ -30,15 +24,223 @@ interface Document {
   created_at: string;
   analysis: Analysis;
   original_text?: string;
-  response_letters?: ResponseLetter[];
+  response_letters?: { id: string; response_type: string; letter_text: string; created_at: string }[];
 }
 
-const urgencyLabel: Record<string, string> = {
-  alta: "🔴 Urgente",
-  media: "🟡 Media priorità",
-  bassa: "🟢 Nessuna urgenza",
+interface Usage {
+  plan: string;
+  used_this_month: number;
+  limit: number | null;
+  remaining: number | null;
+}
+
+/* ─────────── HELPERS ─────────── */
+const PLAN_RANK: Record<string, number> = { free: 0, base: 1, pmi: 2, studio: 3 };
+const hasPlan = (userPlan: string, required: string) =>
+  (PLAN_RANK[userPlan] ?? 0) >= (PLAN_RANK[required] ?? 0);
+
+const urgencyLabel: Record<string, { label: string; color: string; bg: string }> = {
+  alta:  { label: "🔴 Urgente",       color: "#f87171", bg: "rgba(239,68,68,0.12)"  },
+  media: { label: "🟡 Media priorità", color: "#fbbf24", bg: "rgba(245,158,11,0.12)" },
+  bassa: { label: "🟢 Nessuna urgenza",color: "#4ade80", bg: "rgba(34,197,94,0.12)"  },
 };
 
+const planBadge: Record<string, { label: string; cls: string }> = {
+  free:   { label: "FREE",   cls: "badge-free"   },
+  base:   { label: "BASE",   cls: "badge-base"   },
+  pmi:    { label: "PMI",    cls: "badge-pmi"    },
+  studio: { label: "STUDIO", cls: "badge-studio" },
+};
+
+/* ─────────── PDF EXPORT (client-side, jsPDF) ─────────── */
+async function exportToPDF(doc: Document, letter: string, plan: string, userEmail: string) {
+  const { jsPDF } = await import("jspdf");
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  const W = 210, margin = 20;
+  let y = margin;
+
+  // Header
+  pdf.setFillColor(99, 102, 241);
+  pdf.rect(0, 0, W, 18, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(12);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("BuroBot — Analisi Documento", margin, 12);
+  pdf.setFontSize(8);
+  pdf.setFont("helvetica", "normal");
+  if (hasPlan(plan, "studio")) {
+    pdf.text("Studio Professionale", W - margin, 12, { align: "right" });
+  }
+  y = 28;
+
+  // Title
+  pdf.setTextColor(30, 30, 50);
+  pdf.setFontSize(16);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(doc.document_type || doc.file_name, margin, y);
+  y += 8;
+  pdf.setFontSize(9);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(100, 100, 120);
+  pdf.text(`File: ${doc.file_name} — ${new Date(doc.created_at).toLocaleDateString("it-IT")}`, margin, y);
+  y += 12;
+
+  // Urgency
+  const urg = doc.analysis.urgenza;
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(urg === "alta" ? 220 : urg === "media" ? 180 : 50, urg === "alta" ? 50 : urg === "media" ? 130 : 180, 50);
+  pdf.text(`Urgenza: ${urgencyLabel[urg]?.label || urg}`, margin, y);
+  y += 10;
+
+  // Deadline & Amount
+  pdf.setTextColor(30, 30, 50);
+  if (doc.analysis.scadenza) {
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
+    pdf.text(`⏰ Scadenza: `, margin, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(doc.analysis.scadenza, margin + 30, y);
+    y += 7;
+  }
+  if (doc.analysis.importo) {
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
+    pdf.text(`💶 Importo: `, margin, y);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(doc.analysis.importo, margin + 28, y);
+    y += 7;
+  }
+  y += 4;
+
+  // Divider
+  pdf.setDrawColor(200, 200, 220);
+  pdf.line(margin, y, W - margin, y);
+  y += 8;
+
+  // Explanation
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(80, 60, 180);
+  pdf.text("Spiegazione del documento", margin, y);
+  y += 7;
+  pdf.setFontSize(9);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(40, 40, 60);
+  const lines = pdf.splitTextToSize(doc.analysis.spiegazione, W - margin * 2);
+  pdf.text(lines, margin, y);
+  y += lines.length * 5 + 8;
+
+  // Actions
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(80, 60, 180);
+  pdf.text("Cosa fare ora", margin, y);
+  y += 7;
+  pdf.setFontSize(9);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(40, 40, 60);
+  doc.analysis.azioni.forEach((a, i) => {
+    const aLines = pdf.splitTextToSize(`${i + 1}. ${a}`, W - margin * 2 - 5);
+    pdf.text(aLines, margin + 5, y);
+    y += aLines.length * 5 + 3;
+  });
+
+  // Letter
+  if (letter) {
+    y += 6;
+    pdf.setDrawColor(200, 200, 220);
+    pdf.line(margin, y, W - margin, y);
+    y += 8;
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(80, 60, 180);
+    pdf.text("Lettera di risposta generata", margin, y);
+    y += 7;
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(40, 40, 60);
+    const lLines = pdf.splitTextToSize(letter, W - margin * 2);
+    lLines.forEach((line: string) => {
+      if (y > 275) { pdf.addPage(); y = margin; }
+      pdf.text(line, margin, y);
+      y += 5;
+    });
+  }
+
+  // Footer
+  const pages = pdf.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    pdf.setPage(i);
+    pdf.setFontSize(7);
+    pdf.setTextColor(150, 150, 170);
+    pdf.text(`BuroBot © ${new Date().getFullYear()} — ${userEmail} — Pag. ${i}/${pages}`, W / 2, 290, { align: "center" });
+  }
+
+  pdf.save(`burobot_${doc.file_name.replace(/\.[^.]+$/, "")}_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+/* ─────────── COMPONENTS ─────────── */
+
+function EasyModeToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className={`easy-toggle ${enabled ? "active" : ""}`}
+      title={enabled ? "Disattiva modalità facile" : "Attiva modalità facile (font grandi)"}
+    >
+      {enabled ? "🔤 Modalità Facile ON" : "🔤 Modalità Facile"}
+    </button>
+  );
+}
+
+function PlanGate({ required, current, children }: { required: string; current: string; children: React.ReactNode }) {
+  if (hasPlan(current, required)) return <>{children}</>;
+  const planNames: Record<string, string> = { base: "Base", pmi: "PMI", studio: "Studio" };
+  const planColors: Record<string, string> = { base: "badge-base", pmi: "badge-pmi", studio: "badge-studio" };
+  return (
+    <div className={`plan-gate ${required === "studio" ? "plan-gate-studio" : required === "pmi" ? "plan-gate-pmi" : ""}`}>
+      <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🔒</div>
+      <p style={{ fontWeight: 700, marginBottom: "6px", fontSize: "var(--font-base)" }}>
+        Funzionalità {planNames[required] || required}
+      </p>
+      <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", marginBottom: "16px" }}>
+        Attiva il piano {planNames[required]} per sbloccare questa funzione.
+      </p>
+      <Link href="/pricing" className="btn-primary" style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}>
+        Vai ai Piani →
+      </Link>
+    </div>
+  );
+}
+
+function StatCards({ usage, history }: { usage: Usage | null; history: Document[] }) {
+  const plan = usage?.plan || "free";
+  const pb = planBadge[plan] || planBadge.free;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "24px" }}>
+      <div className="stat-card">
+        <span className={`badge ${pb.cls}`} style={{ fontSize: "var(--font-xs)", padding: "4px 10px", marginBottom: "4px" }}>{pb.label}</span>
+        <div className="stat-label">Piano Attivo</div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-value" style={{ color: "#818cf8" }}>{usage?.used_this_month ?? 0}</div>
+        <div className="stat-label">Doc. questo mese</div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-value" style={{ color: "#4ade80" }}>{history.length}</div>
+        <div className="stat-label">Doc. totali</div>
+      </div>
+      <div className="stat-card">
+        <div className="stat-value" style={{ color: plan === "free" ? "#fbbf24" : "#4ade80" }}>
+          {plan === "free" ? (usage?.remaining ?? 0) : "∞"}
+        </div>
+        <div className="stat-label">{plan === "free" ? "Rimasti mese" : "Illimitati"}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── MAIN DASHBOARD ─────────── */
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -48,489 +250,554 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [dragover, setDragover] = useState(false);
   const [history, setHistory] = useState<Document[]>([]);
-  const [usage, setUsage] = useState<any>(null);
-  
-  // Letter generation states
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [easyMode, setEasyMode] = useState(false);
+
+  // Letter
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [userSituation, setUserSituation] = useState("");
   const [responseType, setResponseType] = useState("contestazione");
   const [generatedLetter, setGeneratedLetter] = useState("");
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  // Tab (per piani superiori)
+  const [activeTab, setActiveTab] = useState<"analisi" | "contratti" | "team">("analisi");
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const plan = usage?.plan || "free";
+
+  // Easy mode persistenza
+  useEffect(() => {
+    const saved = localStorage.getItem("burobot_easy");
+    if (saved === "1") { setEasyMode(true); document.body.classList.add("easy-mode"); }
+  }, []);
+
+  const toggleEasyMode = () => {
+    const next = !easyMode;
+    setEasyMode(next);
+    document.body.classList.toggle("easy-mode", next);
+    localStorage.setItem("burobot_easy", next ? "1" : "0");
+  };
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!url || url.includes("xxxx.supabase.co")) {
-      setError("Attenzione: Le chiavi di Supabase non sono ancora state configurate nelle variabili d'ambiente di Vercel. La dashboard non funzionerà.");
+      setError("Supabase non configurato. Imposta le variabili d'ambiente su Vercel.");
       return;
     }
-
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) {
-        router.push("/login?redirect=/dashboard");
-        return;
-      }
+      if (!user) { router.push("/login?redirect=/dashboard"); return; }
       setUser(user);
-      loadHistoryAndUsage();
+      loadData();
     });
   }, [router]);
 
-  const loadHistoryAndUsage = async () => {
+  const loadData = async () => {
     try {
-      const histData = await api.getHistory();
-      setHistory(histData.documents || []);
-      const usageData = await api.getUsage();
-      setUsage(usageData);
-    } catch (err) {
-      console.error("Errore nel caricamento storico/usage", err);
-    }
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    router.push("/");
-    router.refresh();
+      const [h, u] = await Promise.all([api.getHistory(), api.getUsage()]);
+      setHistory(h.documents || []);
+      setUsage(u);
+    } catch { /* silent */ }
   };
 
   const handleFile = (f: File) => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-    if (!allowed.includes(f.type)) {
-      setError("Formato non supportato. Usa JPG, PNG o PDF.");
-      return;
-    }
-    if (f.size > 10 * 1024 * 1024) {
-      setError("File troppo grande. Max 10MB.");
-      return;
-    }
-    setFile(f);
-    setError("");
-    setSelectedDoc(null);
-    setGeneratedLetter("");
+    if (!allowed.includes(f.type)) { setError("Formato non supportato. Usa PDF, JPG o PNG."); return; }
+    if (f.size > 10 * 1024 * 1024) { setError("File troppo grande. Max 10MB."); return; }
+    setFile(f); setError(""); setSelectedDoc(null); setGeneratedLetter("");
   };
 
   const handleAnalyze = async () => {
     if (!file) return;
-    setLoading(true);
-    setError("");
-    setSelectedDoc(null);
-    setGeneratedLetter("");
-
+    setLoading(true); setError(""); setSelectedDoc(null); setGeneratedLetter("");
     try {
       const data = await api.analyzeDocument(file);
       if (data.success && data.document_id) {
-        // Fetch full document with empty response letters
         const newDoc: Document = {
-          id: data.document_id,
-          file_name: file.name,
+          id: data.document_id, file_name: file.name,
           document_type: data.analysis.tipo_documento,
           created_at: new Date().toISOString(),
-          analysis: data.analysis,
-          response_letters: []
+          analysis: data.analysis, response_letters: []
         };
-        setSelectedDoc(newDoc);
-        setFile(null);
-        loadHistoryAndUsage();
-      } else {
-        throw new Error("Impossibile salvare il documento");
-      }
+        setSelectedDoc(newDoc); setFile(null); loadData();
+      } else throw new Error("Impossibile salvare il documento");
     } catch (e: any) {
-      setError(e.message || "Errore sconosciuto durante l'analisi.");
-    } finally {
-      setLoading(false);
-    }
+      setError(e.message || "Errore durante l'analisi.");
+    } finally { setLoading(false); }
   };
 
-  const handleSelectDocFromHistory = async (docId: string) => {
-    setLoading(true);
-    setError("");
-    setFile(null);
-    setGeneratedLetter("");
-    setUserSituation("");
+  const loadDocFull = async (docId: string) => {
+    setLoading(true); setError(""); setFile(null); setGeneratedLetter(""); setUserSituation("");
     try {
-      // We call the single document detail endpoint to get original_text and response_letters
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      
       const res = await fetch(`${API_URL}/api/documents/${docId}`, {
-        headers: {
-          Authorization: `Bearer ${session?.access_token || ""}`
-        }
+        headers: { Authorization: `Bearer ${session?.access_token || ""}` }
       });
-      if (!res.ok) throw new Error("Errore nel caricamento del documento");
-      
-      const fullDoc = await res.json();
-      setSelectedDoc(fullDoc);
-      
-      // If there are already generated letters, display the latest one
-      if (fullDoc.response_letters && fullDoc.response_letters.length > 0) {
-        setGeneratedLetter(fullDoc.response_letters[0].letter_text);
-        setResponseType(fullDoc.response_letters[0].response_type);
+      if (!res.ok) throw new Error("Errore nel caricamento");
+      const full = await res.json();
+      setSelectedDoc(full);
+      if (full.response_letters?.length > 0) {
+        setGeneratedLetter(full.response_letters[0].letter_text);
+        setResponseType(full.response_letters[0].response_type);
       }
-    } catch (err: any) {
-      setError(err.message || "Errore nel caricamento del documento.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { setError(err.message); }
+    finally { setLoading(false); }
   };
 
   const handleGenerateLetter = async () => {
     if (!selectedDoc) return;
-    if (!userSituation.trim()) {
-      setError("Spiega brevemente la tua situazione per generare la risposta.");
-      return;
-    }
-    setGeneratingLetter(true);
-    setError("");
-
+    if (!userSituation.trim()) { setError("Spiega la tua situazione per generare la lettera."); return; }
+    setGeneratingLetter(true); setError("");
     try {
       const res = await api.generateResponse(selectedDoc.id, userSituation, responseType);
-      if (res.success && res.letter) {
-        setGeneratedLetter(res.letter);
-        // Refresh document details to include the new letter in history
-        handleSelectDocFromHistory(selectedDoc.id);
-      } else {
-        throw new Error("Errore nella generazione della lettera");
-      }
-    } catch (err: any) {
-      setError(err.message || "Impossibile generare la lettera.");
-    } finally {
-      setGeneratingLetter(false);
-    }
+      if (res.success && res.letter) { setGeneratedLetter(res.letter); loadDocFull(selectedDoc.id); }
+      else throw new Error("Errore nella generazione");
+    } catch (err: any) { setError(err.message || "Impossibile generare la lettera."); }
+    finally { setGeneratingLetter(false); }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedLetter);
-    alert("Lettera copiata negli appunti!");
+  const handleExportPDF = async () => {
+    if (!selectedDoc || !user) return;
+    setExportingPdf(true);
+    try { await exportToPDF(selectedDoc, generatedLetter, plan, user.email); }
+    catch (e: any) { setError("Errore export PDF: " + e.message); }
+    finally { setExportingPdf(false); }
   };
 
-  const handleReset = () => {
-    setFile(null);
-    setSelectedDoc(null);
-    setGeneratedLetter("");
-    setUserSituation("");
-    setError("");
-  };
+  const handleReset = () => { setFile(null); setSelectedDoc(null); setGeneratedLetter(""); setUserSituation(""); setError(""); };
+
+  const tabStyle = (tab: string) => ({
+    padding: "10px 20px",
+    borderRadius: "var(--radius-md)",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "var(--font-sm)",
+    transition: "all 0.2s ease",
+    background: activeTab === tab ? "var(--primary)" : "transparent",
+    color: activeTab === tab ? "white" : "var(--text-muted)",
+    boxShadow: activeTab === tab ? "0 0 20px rgba(99,102,241,0.3)" : "none",
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-dark)", display: "flex", flexDirection: "column" }}>
-      {/* Navbar */}
+
+      {/* ── NAVBAR ── */}
       <nav style={{
-        padding: "16px 40px",
-        background: "rgba(10,10,15,0.9)",
+        padding: "14px 32px",
+        background: "rgba(10,10,15,0.95)",
         backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(99,102,241,0.15)",
+        borderBottom: "1px solid var(--border)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        zIndex: 10
+        position: "sticky", top: 0, zIndex: 50, gap: "16px",
       }}>
-        <Link href="/" style={{ fontSize: "1.3rem", fontWeight: 800, background: "linear-gradient(135deg,#6366f1,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", textDecoration: "none" }}>
+        <Link href="/" style={{
+          fontSize: "1.3rem", fontWeight: 900,
+          background: "linear-gradient(135deg,#6366f1,#a78bfa)",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          textDecoration: "none", whiteSpace: "nowrap",
+        }}>
           🤖 BuroBot
         </Link>
-        <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-          <Link href="/pricing" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.9rem" }}>
-            Piani {usage?.plan && <span className="badge" style={{ padding: "2px 8px", fontSize: "0.75rem", marginLeft: "4px" }}>{usage.plan.toUpperCase()}</span>}
+
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <EasyModeToggle enabled={easyMode} onToggle={toggleEasyMode} />
+          <Link href="/pricing" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "var(--font-sm)" }}>
+            Piani {usage && <span className={`badge ${planBadge[plan]?.cls}`} style={{ marginLeft: "4px", fontSize: "0.7rem", padding: "2px 8px" }}>{planBadge[plan]?.label}</span>}
           </Link>
-          <Link href="/profile" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.9rem" }}>Profilo</Link>
-          <button onClick={handleLogout} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "0.9rem" }}>Esci</button>
+          <Link href="/profile" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "var(--font-sm)" }}>Profilo</Link>
+          <button onClick={async () => { await signOut(); router.push("/"); }}
+            style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: "var(--font-sm)" }}>
+            Esci
+          </button>
         </div>
       </nav>
 
-      {/* Main Grid Layout */}
-      <div style={{
-        flex: 1,
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-        gap: "30px",
-        maxWidth: "1300px",
-        width: "100%",
-        margin: "0 auto",
-        padding: "40px 24px"
-      }}>
-        
-        {/* LEFT COLUMN: Upload & Histroy */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-          
-          {/* UPLOAD BOX */}
-          <div className="glass-card" style={{ padding: "30px" }}>
-            <h2 style={{ fontSize: "1.3rem", fontWeight: 800, marginBottom: "16px" }}>Analizza Documento</h2>
-            
-            <div
-              className={`upload-zone ${dragover ? "dragover" : ""}`}
-              onClick={() => fileRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
-              onDragLeave={() => setDragover(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragover(false);
-                const f = e.dataTransfer.files[0];
-                if (f) handleFile(f);
-              }}
-              style={{ padding: "30px 20px" }}
-            >
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,.pdf"
-                style={{ display: "none" }}
-                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-              />
-              {file ? (
-                <div>
-                  <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>
-                    {file.type === "application/pdf" ? "📄" : "🖼️"}
-                  </div>
-                  <p style={{ fontWeight: 600, color: "#f1f5f9", fontSize: "0.9rem", wordBreak: "break-all" }}>{file.name}</p>
-                  <p style={{ color: "#6b7280", fontSize: "0.8rem", marginTop: "4px" }}>
-                    {(file.size / 1024).toFixed(0)} KB
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>📤</div>
-                  <p style={{ fontSize: "0.95rem", fontWeight: 600, color: "#f1f5f9" }}>
-                    Trascina qui il file o clicca
-                  </p>
-                  <p style={{ color: "#6b7280", fontSize: "0.75rem", marginTop: "4px" }}>
-                    PDF, JPG, PNG o WEBP • Max 10MB
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {file && !loading && (
-              <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-                <button onClick={handleAnalyze} className="btn-primary" style={{ flex: 1, padding: "12px", fontSize: "0.9rem", justifyContent: "center" }}>
-                  🔍 Analizza ora
-                </button>
-                <button onClick={handleReset} className="btn-secondary" style={{ padding: "12px", fontSize: "0.9rem" }}>
-                  Annulla
-                </button>
-              </div>
-            )}
-
-            {loading && (
-              <div style={{ textAlign: "center", marginTop: "20px" }}>
-                <div className="spinner" style={{ margin: "0 auto 12px" }} />
-                <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>BuroBot sta leggendo il documento ed elaborando...</p>
-              </div>
-            )}
-
-            {error && (
-              <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "12px", padding: "12px", marginTop: "16px", color: "#f87171", fontSize: "0.85rem" }}>
-                ⚠️ {error}
-              </div>
-            )}
-          </div>
-
-          {/* HISTORY LIST */}
-          <div className="glass-card" style={{ padding: "30px", flex: 1, display: "flex", flexDirection: "column" }}>
-            <h2 style={{ fontSize: "1.3rem", fontWeight: 800, marginBottom: "16px" }}>Cronologia Analisi</h2>
-            
-            {history.length === 0 ? (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "150px" }}>
-                <p style={{ color: "#6b7280", fontSize: "0.9rem" }}>Nessun documento analizzato finora.</p>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "400px", overflowY: "auto", paddingRight: "4px" }}>
-                {history.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="feature-card"
-                    onClick={() => handleSelectDocFromHistory(doc.id)}
-                    style={{
-                      cursor: "pointer",
-                      padding: "12px 16px",
-                      background: selectedDoc?.id === doc.id ? "rgba(99,102,241,0.1)" : "var(--bg-card)",
-                      borderColor: selectedDoc?.id === doc.id ? "rgba(99,102,241,0.4)" : "var(--border)",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                      <p style={{ fontWeight: 600, color: "#f1f5f9", fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "180px" }}>
-                        {doc.file_name}
-                      </p>
-                      <span className={`badge urgency-${doc.analysis.urgenza}`} style={{ fontSize: "0.7rem", padding: "2px 6px" }}>
-                        {doc.analysis.urgenza}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "4px" }}>
-                      {doc.document_type} • {new Date(doc.created_at).toLocaleDateString("it-IT")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* ── EASY MODE BANNER ── */}
+      {easyMode && (
+        <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(167,139,250,0.1))", borderBottom: "1px solid var(--border)", padding: "10px 32px", display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "1.5rem" }}>👴👵</span>
+          <span style={{ fontWeight: 700, fontSize: "var(--font-base)" }}>Modalità Facile attiva</span>
+          <span style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>— Testi più grandi, interfaccia semplificata</span>
         </div>
+      )}
 
-        {/* RIGHT COLUMN: Results & Letter Generator */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {selectedDoc ? (
-            <div className="glass-card animate-fade-up" style={{ padding: "30px", height: "100%", display: "flex", flexDirection: "column", gap: "24px" }}>
-              
-              {/* Analysis Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "20px" }}>
-                <div>
-                  <span className="badge" style={{ marginBottom: "6px" }}>{selectedDoc.document_type}</span>
-                  <h2 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{selectedDoc.file_name}</h2>
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexDirection: "column", alignItems: "flex-end" }}>
-                  <span className={`badge urgency-${selectedDoc.analysis.urgenza}`} style={{ borderRadius: "8px" }}>
-                    {urgencyLabel[selectedDoc.analysis.urgenza]}
-                  </span>
-                  <button onClick={handleReset} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.75rem" }}>Chiudi</button>
-                </div>
-              </div>
+      {/* ── TABS (solo piani PMI e Studio) ── */}
+      {hasPlan(plan, "pmi") && (
+        <div style={{ background: "rgba(10,10,15,0.6)", borderBottom: "1px solid var(--border)", padding: "12px 32px", display: "flex", gap: "8px" }}>
+          <button style={tabStyle("analisi")} onClick={() => setActiveTab("analisi")}>📄 Analisi Documenti</button>
+          <button style={tabStyle("contratti")} onClick={() => setActiveTab("contratti")}>📋 Contratti Commerciali</button>
+          {hasPlan(plan, "pmi") && <button style={tabStyle("team")} onClick={() => setActiveTab("team")}>👥 Gestione Team</button>}
+        </div>
+      )}
 
-              {/* Deadline & Amounts */}
-              {(selectedDoc.analysis.scadenza || selectedDoc.analysis.importo) && (
-                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                  {selectedDoc.analysis.scadenza && (
-                    <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "10px", padding: "10px 16px" }}>
-                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "2px" }}>Scadenza Rilevata</p>
-                      <p style={{ fontWeight: 700, color: "#fbbf24", fontSize: "0.95rem" }}>⏰ {selectedDoc.analysis.scadenza}</p>
-                    </div>
-                  )}
-                  {selectedDoc.analysis.importo && (
-                    <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "10px", padding: "10px 16px" }}>
-                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "2px" }}>Importo Rilevato</p>
-                      <p style={{ fontWeight: 700, color: "#f87171", fontSize: "0.95rem" }}>💶 {selectedDoc.analysis.importo}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ flex: 1, maxWidth: "1400px", width: "100%", margin: "0 auto", padding: "32px 24px" }}>
 
-              {/* Spiegazione */}
+        {/* STAT CARDS */}
+        <StatCards usage={usage} history={history} />
+
+        {/* TAB: CONTRATTI COMMERCIALI */}
+        {activeTab === "contratti" && (
+          <div className="glass-card animate-fade-up" style={{ padding: "40px", textAlign: "center" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "16px" }}>📋</div>
+            <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "12px" }}>Analisi Contratti Commerciali</h2>
+            <p style={{ color: "var(--text-muted)", maxWidth: "500px", margin: "0 auto 24px", lineHeight: 1.7, fontSize: "var(--font-base)" }}>
+              Carica un contratto commerciale, di locazione, di fornitura o qualsiasi accordo commerciale. BuroBot lo analizza evidenziando clausole rischiose, obblighi e scadenze.
+            </p>
+            <div className="upload-zone" onClick={() => fileRef.current?.click()} style={{ maxWidth: "500px", margin: "0 auto" }}>
+              <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); setActiveTab("analisi"); } }} />
+              <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>📤</div>
+              <p style={{ fontWeight: 700, fontSize: "var(--font-lg)" }}>Carica il contratto PDF</p>
+              <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "6px" }}>Clicca qui o trascina il file</p>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TEAM */}
+        {activeTab === "team" && (
+          <div className="glass-card animate-fade-up" style={{ padding: "40px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
               <div>
-                <h3 style={{ fontWeight: 700, marginBottom: "8px", color: "#a78bfa", fontSize: "1.05rem" }}>📖 Significato del documento</h3>
-                <p style={{ color: "#cbd5e1", lineHeight: 1.7, fontSize: "0.95rem" }}>{selectedDoc.analysis.spiegazione}</p>
+                <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "6px" }}>👥 Gestione Team</h2>
+                <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
+                  {hasPlan(plan, "studio") ? "Account collaboratori illimitati" : "Fino a 5 collaboratori"}
+                </p>
               </div>
-
-              {/* Azioni Consigliate */}
-              <div>
-                <h3 style={{ fontWeight: 700, marginBottom: "8px", color: "#a78bfa", fontSize: "1.05rem" }}>✅ Cosa devi fare ora</h3>
-                <ol style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {selectedDoc.analysis.azioni.map((a, i) => (
-                    <li key={i} style={{ color: "#cbd5e1", lineHeight: 1.5, fontSize: "0.95rem" }}>{a}</li>
-                  ))}
-                </ol>
+              <button className="btn-primary" style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}>
+                + Invita Collaboratore
+              </button>
+            </div>
+            <div style={{ background: "rgba(99,102,241,0.05)", border: "1px dashed rgba(99,102,241,0.3)", borderRadius: "var(--radius-lg)", padding: "40px", textAlign: "center" }}>
+              <div style={{ fontSize: "3rem", marginBottom: "12px" }}>📧</div>
+              <p style={{ fontWeight: 700, marginBottom: "8px", fontSize: "var(--font-base)" }}>Nessun collaboratore ancora</p>
+              <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>Invita i tuoi colleghi via email per condividere i documenti analizzati.</p>
+            </div>
+            {hasPlan(plan, "studio") && (
+              <div style={{ marginTop: "24px", padding: "20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)" }}>
+                <p style={{ fontWeight: 700, color: "#fbbf24", marginBottom: "6px" }}>🌟 Studio Pro</p>
+                <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
+                  Il tuo piano Studio include un account manager dedicato. Contatta il tuo referente:
+                  <a href="mailto:studio@burobot.it" style={{ color: "#fbbf24", marginLeft: "6px" }}>studio@burobot.it</a>
+                </p>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Letter Generator section */}
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "24px" }}>
-                <h3 style={{ fontWeight: 800, marginBottom: "12px", color: "#a78bfa", fontSize: "1.1rem" }}>✍️ Scrivi Risposta Formale</h3>
-                
-                {generatedLetter ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>Risposta Generata ({responseType === "contestazione" ? "Ricorso/Contestazione" : "Richiesta Informazioni"}):</span>
-                      <button onClick={copyToClipboard} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "0.75rem" }}>📋 Copia Lettera</button>
-                    </div>
-                    <textarea
-                      readOnly
-                      value={generatedLetter}
-                      style={{
-                        width: "100%",
-                        height: "220px",
-                        background: "rgba(10, 10, 15, 0.8)",
-                        border: "1px solid rgba(99, 102, 241, 0.2)",
-                        borderRadius: "12px",
-                        padding: "16px",
-                        color: "#cbd5e1",
-                        fontSize: "0.9rem",
-                        fontFamily: "monospace",
-                        lineHeight: "1.5",
-                        outline: "none",
-                        resize: "none"
-                      }}
-                    />
-                    <button
-                      onClick={() => setGeneratedLetter("")}
-                      className="btn-secondary"
-                      style={{ padding: "10px", justifyContent: "center", fontSize: "0.85rem" }}
-                    >
-                      Genera un'altra risposta
-                    </button>
+        {/* TAB: ANALISI PRINCIPALE */}
+        {activeTab === "analisi" && (
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 420px) 1fr", gap: "28px", alignItems: "start" }}>
+
+            {/* LEFT: Upload + History */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+              {/* UPLOAD */}
+              <div className="glass-card" style={{ padding: "28px" }}>
+                <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  📤 Analizza Documento
+                </h2>
+
+                {easyMode && (
+                  <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "14px", marginBottom: "16px", fontSize: "var(--font-base)" }}>
+                    <strong>Come funziona:</strong><br />
+                    1️⃣ Clicca qui sotto e scegli il documento<br />
+                    2️⃣ Clicca il bottone viola "Analizza ora"<br />
+                    3️⃣ Aspetta 10 secondi — BuroBot ti spiega tutto!
                   </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                    <p style={{ color: "#94a3b8", fontSize: "0.85rem", lineHeight: "1.5" }}>
-                      Spiega a BuroBot la tua situazione (es. "Ho già pagato questo tributo il 12/03", o "Voglio richiedere la rateizzazione dell'importo"). BuroBot scriverà per te una lettera formale o un ricorso.
-                    </p>
+                )}
 
-                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      <div style={{ flex: 1, minWidth: "150px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>Tipo di risposta</label>
-                        <select
-                          value={responseType}
-                          onChange={(e) => setResponseType(e.target.value)}
-                          style={{
-                            background: "rgba(10, 10, 15, 0.6)",
-                            border: "1px solid rgba(99, 102, 241, 0.2)",
-                            borderRadius: "8px",
-                            padding: "10px",
-                            color: "white",
-                            fontSize: "0.9rem",
-                            outline: "none"
-                          }}
-                        >
-                          <option value="contestazione">Ricorso o Contestazione</option>
-                          <option value="rateizzazione">Richiesta di Rateizzazione</option>
-                          <option value="autotutela">Istanza di Autotutela</option>
-                          <option value="informazioni">Richiesta di Chiarimenti</option>
-                        </select>
-                      </div>
+                <div
+                  className={`upload-zone ${dragover ? "dragover" : ""}`}
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
+                  onDragLeave={() => setDragover(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragover(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                >
+                  <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    style={{ display: "none" }}
+                    onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                  {file ? (
+                    <div>
+                      <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>{file.type === "application/pdf" ? "📄" : "🖼️"}</div>
+                      <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-base)", wordBreak: "break-all" }}>{file.name}</p>
+                      <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "4px" }}>{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>La tua situazione / motivazioni</label>
-                      <textarea
-                        value={userSituation}
-                        onChange={(e) => setUserSituation(e.target.value)}
-                        placeholder="Descrivi cosa vorresti dire o quali prove hai (es. Ricevuta pagamento, errore dell'ufficio...)"
-                        style={{
-                          width: "100%",
-                          height: "90px",
-                          background: "rgba(10, 10, 15, 0.6)",
-                          border: "1px solid rgba(99, 102, 241, 0.2)",
-                          borderRadius: "12px",
-                          padding: "12px",
-                          color: "white",
-                          fontSize: "0.9rem",
-                          outline: "none",
-                          resize: "none"
-                        }}
-                      />
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: "2.5rem", marginBottom: "10px" }}>📂</div>
+                      <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-lg)" }}>
+                        {easyMode ? "Tocca qui per scegliere il documento" : "Trascina il file o clicca"}
+                      </p>
+                      <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "6px" }}>PDF, JPG, PNG • Max 10MB</p>
                     </div>
+                  )}
+                </div>
 
-                    <button
-                      disabled={generatingLetter}
-                      onClick={handleGenerateLetter}
-                      className="btn-primary"
-                      style={{ justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}
-                    >
-                      {generatingLetter ? (
-                        <div className="spinner" style={{ width: 18, height: 18 }} />
-                      ) : (
-                        "✍️ Genera lettera formale"
-                      )}
+                {file && !loading && (
+                  <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                    <button onClick={handleAnalyze} className="btn-primary" style={{ flex: 1, padding: "14px", fontSize: "var(--font-base)" }}>
+                      🔍 Analizza ora
                     </button>
+                    <button onClick={handleReset} className="btn-secondary" style={{ padding: "14px 16px", fontSize: "var(--font-base)" }}>✕</button>
+                  </div>
+                )}
+
+                {loading && (
+                  <div style={{ textAlign: "center", padding: "24px 0" }}>
+                    <div className="spinner" style={{ margin: "0 auto 12px" }} />
+                    <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
+                      {easyMode ? "Sto leggendo il documento, attendi..." : "BuroBot sta analizzando il documento..."}
+                    </p>
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "var(--radius-md)", padding: "14px", marginTop: "14px", color: "#f87171", fontSize: "var(--font-sm)", lineHeight: 1.5 }}>
+                    ⚠️ {error}
+                  </div>
+                )}
+
+                {/* PIANO FREE WARNING */}
+                {plan === "free" && usage && (usage.remaining ?? 0) <= 1 && (
+                  <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "var(--radius-md)", padding: "14px", marginTop: "14px" }}>
+                    <p style={{ color: "#fbbf24", fontWeight: 700, fontSize: "var(--font-sm)", marginBottom: "8px" }}>
+                      ⚠️ {usage.remaining === 0 ? "Hai esaurito i documenti gratuiti" : `Ti rimane solo ${usage.remaining} documento gratuito`}
+                    </p>
+                    <Link href="/pricing" className="btn-primary" style={{ fontSize: "var(--font-xs)", padding: "8px 16px" }}>
+                      Passa a Base — €9.99/mese →
+                    </Link>
                   </div>
                 )}
               </div>
 
+              {/* HISTORY */}
+              <div className="glass-card" style={{ padding: "28px" }}>
+                <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px" }}>📋 Cronologia</h2>
+                {history.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-dim)" }}>
+                    <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📭</div>
+                    <p style={{ fontSize: "var(--font-sm)" }}>Nessun documento analizzato</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
+                    {history.map((doc) => (
+                      <div
+                        key={doc.id}
+                        onClick={() => loadDocFull(doc.id)}
+                        style={{
+                          cursor: "pointer", padding: "12px 16px", borderRadius: "var(--radius-md)",
+                          background: selectedDoc?.id === doc.id ? "rgba(99,102,241,0.12)" : "var(--bg-card)",
+                          border: `1px solid ${selectedDoc?.id === doc.id ? "rgba(99,102,241,0.5)" : "var(--border)"}`,
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = selectedDoc?.id === doc.id ? "rgba(99,102,241,0.5)" : "var(--border)")}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                          <p style={{ fontWeight: 600, color: "var(--text-main)", fontSize: "var(--font-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "170px" }}>
+                            {doc.file_name}
+                          </p>
+                          <span className={`urgency-${doc.analysis.urgenza}`}>
+                            {doc.analysis.urgenza}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "var(--font-xs)", color: "var(--text-dim)", marginTop: "4px" }}>
+                          {doc.document_type} • {new Date(doc.created_at).toLocaleDateString("it-IT")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="glass-card" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", minHeight: "350px", textAlign: "center" }}>
-              <div style={{ fontSize: "4rem", marginBottom: "20px" }}>🤖</div>
-              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "8px" }}>Pronto ad aiutarti</h2>
-              <p style={{ color: "#94a3b8", maxWidth: "340px", fontSize: "0.95rem", lineHeight: 1.6 }}>
-                Carica un documento o selezionane uno dalla cronologia per vedere l'analisi dettagliata e generare risposte formali.
-              </p>
-            </div>
-          )}
-        </div>
 
+            {/* RIGHT: Results */}
+            <div style={{ minHeight: "500px" }}>
+              {selectedDoc ? (
+                <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "20px" }}>
+                    <div style={{ flex: 1 }}>
+                      <span className="badge" style={{ marginBottom: "8px" }}>{selectedDoc.document_type}</span>
+                      <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginTop: "6px", wordBreak: "break-word" }}>{selectedDoc.file_name}</h2>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                      <span className={`urgency-${selectedDoc.analysis.urgenza}`}>
+                        {urgencyLabel[selectedDoc.analysis.urgenza]?.label}
+                      </span>
+                      {/* Export PDF — tutti i piani */}
+                      <button
+                        onClick={handleExportPDF}
+                        disabled={exportingPdf}
+                        className="btn-secondary"
+                        style={{ padding: "8px 14px", fontSize: "var(--font-xs)" }}
+                        title="Scarica analisi in PDF"
+                      >
+                        {exportingPdf ? <div className="spinner" style={{ width: 14, height: 14 }} /> : "📄 PDF"}
+                      </button>
+                      <button onClick={handleReset} className="btn-secondary" style={{ padding: "8px 12px", fontSize: "var(--font-xs)" }}>✕ Chiudi</button>
+                    </div>
+                  </div>
+
+                  {/* Scadenza + Importo */}
+                  {(selectedDoc.analysis.scadenza || selectedDoc.analysis.importo) && (
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                      {selectedDoc.analysis.scadenza && (
+                        <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
+                          <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>⏰ Scadenza</p>
+                          <p style={{ fontWeight: 800, color: "#fbbf24", fontSize: "var(--font-lg)" }}>{selectedDoc.analysis.scadenza}</p>
+                        </div>
+                      )}
+                      {selectedDoc.analysis.importo && (
+                        <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
+                          <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>💶 Importo</p>
+                          <p style={{ fontWeight: 800, color: "#f87171", fontSize: "var(--font-lg)" }}>{selectedDoc.analysis.importo}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Spiegazione */}
+                  <div>
+                    <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      📖 Cosa significa questo documento
+                    </h3>
+                    <p style={{ color: "#cbd5e1", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{selectedDoc.analysis.spiegazione}</p>
+                  </div>
+
+                  {/* Azioni */}
+                  <div>
+                    <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      ✅ Cosa devi fare {easyMode ? "ADESSO" : "ora"}
+                    </h3>
+                    <ol style={{ paddingLeft: "0", display: "flex", flexDirection: "column", gap: "10px", listStyle: "none" }}>
+                      {selectedDoc.analysis.azioni.map((a, i) => (
+                        <li key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", background: "rgba(99,102,241,0.05)", borderRadius: "var(--radius-md)", padding: "12px 16px" }}>
+                          <span style={{ background: "var(--primary)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "var(--font-xs)", flexShrink: 0 }}>{i + 1}</span>
+                          <span style={{ color: "#cbd5e1", lineHeight: 1.6, fontSize: "var(--font-base)" }}>{a}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  <hr className="section-divider" />
+
+                  {/* LETTERA — solo Base+ */}
+                  <div>
+                    <h3 style={{ fontWeight: 800, marginBottom: "14px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      ✍️ {easyMode ? "Scrivi una lettera di risposta" : "Genera Risposta Formale"}
+                    </h3>
+
+                    <PlanGate required="base" current={plan}>
+                      {generatedLetter ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            <button onClick={() => navigator.clipboard.writeText(generatedLetter).then(() => alert("Copiato!"))} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
+                              📋 Copia
+                            </button>
+                            <button onClick={handleExportPDF} disabled={exportingPdf} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
+                              {exportingPdf ? <div className="spinner" style={{ width: 12, height: 12 }} /> : "📄 Scarica PDF"}
+                            </button>
+                            <button onClick={() => setGeneratedLetter("")} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
+                              🔄 Rigenera
+                            </button>
+                          </div>
+                          <textarea
+                            readOnly value={generatedLetter}
+                            className="input-field"
+                            style={{ height: "240px", fontFamily: "monospace", fontSize: "var(--font-sm)", resize: "vertical" }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                          {easyMode && (
+                            <div style={{ background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-md)", padding: "14px", fontSize: "var(--font-base)" }}>
+                              💡 <strong>Come funziona:</strong> Scegli che tipo di risposta vuoi (ricorso, rateizzazione...) e spiega la tua situazione. BuroBot scrive la lettera per te!
+                            </div>
+                          )}
+                          <div>
+                            <label style={{ fontSize: "var(--font-sm)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>Tipo di risposta</label>
+                            <select value={responseType} onChange={(e) => setResponseType(e.target.value)} className="input-field">
+                              <option value="contestazione">⚖️ Ricorso / Contestazione</option>
+                              <option value="rateizzazione">📅 Richiesta Rateizzazione</option>
+                              <option value="autotutela">🛡️ Istanza di Autotutela</option>
+                              <option value="informazioni">❓ Richiesta di Chiarimenti</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "var(--font-sm)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>
+                              {easyMode ? "Spiega la tua situazione (cosa è successo, perché non sei d'accordo...)" : "La tua situazione / motivazioni"}
+                            </label>
+                            <textarea
+                              value={userSituation}
+                              onChange={(e) => setUserSituation(e.target.value)}
+                              placeholder={easyMode ? "Esempio: Ho già pagato questa somma il 15 marzo. Ho la ricevuta." : "Es: Ho già pagato il 12/03 (allego ricevuta), oppure chiedo la rateizzazione..."}
+                              className="input-field"
+                              style={{ height: "100px" }}
+                            />
+                          </div>
+                          <button
+                            disabled={generatingLetter}
+                            onClick={handleGenerateLetter}
+                            className="btn-primary"
+                            style={{ padding: "15px", fontSize: "var(--font-base)" }}
+                          >
+                            {generatingLetter
+                              ? <><div className="spinner" style={{ width: 18, height: 18 }} />{easyMode ? " Sto scrivendo la lettera..." : " Generazione in corso..."}</>
+                              : easyMode ? "✍️ Scrivi la lettera per me!" : "✍️ Genera lettera formale"}
+                          </button>
+                        </div>
+                      )}
+                    </PlanGate>
+                  </div>
+
+                  {/* EXPORT PDF STUDIO con logo */}
+                  {hasPlan(plan, "studio") && (
+                    <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
+                      <p style={{ fontWeight: 700, color: "#fbbf24", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        🌟 Studio Pro — Export Avanzato
+                      </p>
+                      <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", marginBottom: "14px" }}>
+                        Il PDF include intestazione professionale con i dati del tuo studio. Personalizzabile con il tuo logo.
+                      </p>
+                      <button onClick={handleExportPDF} disabled={exportingPdf} className="btn-success" style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}>
+                        {exportingPdf ? <><div className="spinner" style={{ width: 16, height: 16 }} /> Generando...</> : "📄 Scarica PDF Professionale"}
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                <div className="glass-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 40px", minHeight: "500px", textAlign: "center" }}>
+                  <div style={{ fontSize: "5rem", marginBottom: "20px" }}>🤖</div>
+                  <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "12px" }}>
+                    {easyMode ? "Ciao! Sono BuroBot" : "Pronto ad aiutarti"}
+                  </h2>
+                  <p style={{ color: "var(--text-muted)", maxWidth: "380px", fontSize: "var(--font-base)", lineHeight: 1.7 }}>
+                    {easyMode
+                      ? "Carica una lettera o un documento e ti spiego tutto in parole semplici. Poi posso scrivere la risposta al posto tuo!"
+                      : "Carica un documento dalla colonna sinistra o selezionane uno dalla cronologia."}
+                  </p>
+                  {easyMode && (
+                    <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px", maxWidth: "320px" }}>
+                      {["📮 Lettere dell'INPS", "💰 Avvisi di pagamento", "🏛️ Lettere del Comune", "📋 Contratti da firmare"].map((item) => (
+                        <div key={item} style={{ background: "rgba(99,102,241,0.08)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: "var(--font-base)", color: "var(--text-muted)" }}>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
       </div>
     </div>
   );
