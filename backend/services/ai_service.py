@@ -59,25 +59,22 @@ def get_rag_index():
 
 
 def _build_analyze_prompt(text: str, rag_context: str = "") -> str:
+    # Tronca il testo e rimuovi caratteri problematici per il JSON
+    safe_text = text[:3000].replace('\x00', '').replace('\r', ' ')
     return f"""{SYSTEM_PROMPT}
 
-Analizza questo documento burocratico italiano e rispondi SOLO con un JSON valido nel seguente formato:
-{{
-  "tipo_documento": "nome del tipo di documento identificato",
-  "spiegazione": "spiegazione in linguaggio semplice (max 3 paragrafi)",
-  "scadenza": "data scadenza o null se non presente",
-  "importo": "importo in euro o null se non presente",
-  "azioni": ["azione 1", "azione 2"],
-  "urgenza": "alta|media|bassa",
-  "genera_risposta": true
-}}
+Analizza questo documento burocratico italiano.
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido, senza markdown, senza testo aggiuntivo.
+
+Formato JSON richiesto:
+{{"tipo_documento":"string","spiegazione":"string (max 500 caratteri)","scadenza":"string o null","importo":"string o null","azioni":["string"],"urgenza":"alta","genera_risposta":true}}
 
 ---DOCUMENTO---
-{text[:4000]}
----FINE DOCUMENTO---
+{safe_text}
+---FINE---
 {rag_context}
 
-Rispondi SOLO con il JSON, nessun testo aggiuntivo."""
+Rispondi solo con il JSON. La spiegazione non deve contenere newline o virgolette non escaped."""
 
 
 async def analyze_document(text: str, document_type: str = "generico") -> dict:
@@ -107,7 +104,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
         model_name="gemini-2.5-flash",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
-            max_output_tokens=1500,
+            max_output_tokens=2048,
             response_mime_type="application/json",
         )
     )
@@ -115,41 +112,65 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     response = await asyncio.to_thread(model.generate_content, prompt)
     raw = response.text.strip()
 
-    # Pulisci eventuali markdown code blocks
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+    # Rimuovi eventuali markdown code blocks
+    if "```" in raw:
+        import re
+        match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+        if match:
+            raw = match.group(1)
     raw = raw.strip()
 
+    # Strategia 1: parse diretto
     try:
         return json.loads(raw)
-    except Exception as e:
-        print("--- PARSING ERROR RAW CONTENT START ---")
-        print(raw)
-        print("--- PARSING ERROR RAW CONTENT END ---")
-        try:
-            sanitized = []
-            in_string = False
-            escape = False
-            for char in raw:
-                if char == '"' and not escape:
-                    in_string = not in_string
-                if char == '\\' and not escape:
-                    escape = True
-                else:
-                    escape = False
-                
-                if char == '\n' and in_string:
-                    sanitized.append('\\n')
-                elif char == '\r' and in_string:
-                    continue
-                else:
-                    sanitized.append(char)
-            cleaned_raw = "".join(sanitized)
-            return json.loads(cleaned_raw)
-        except Exception as e2:
-            raise ValueError(f"Impossibile analizzare la risposta dell'AI come JSON: {e}")
+    except Exception:
+        pass
+
+    # Strategia 2: estrai il primo oggetto JSON valido con regex
+    try:
+        import re
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except Exception:
+        pass
+
+    # Strategia 3: sanitizza i newline dentro le stringhe
+    try:
+        sanitized = []
+        in_string = False
+        escape = False
+        for char in raw:
+            if char == '"' and not escape:
+                in_string = not in_string
+            escape = (char == '\\' and not escape)
+            if char == '\n' and in_string:
+                sanitized.append('\\n')
+            elif char == '\r':
+                continue
+            else:
+                sanitized.append(char)
+        return json.loads("".join(sanitized))
+    except Exception:
+        pass
+
+    # Strategia 4: chiedi a Gemini un JSON piu semplice come fallback
+    try:
+        fallback_prompt = f"""Analizza brevemente questo documento italiano e rispondi con JSON.
+{text[:1000]}
+JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":null,"importo":null,"azioni":["Leggi il documento"],"urgenza":"media","genera_risposta":false}}"""
+        fallback_model = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            generation_config=genai.GenerationConfig(
+                temperature=0,
+                max_output_tokens=512,
+                response_mime_type="application/json",
+            )
+        )
+        fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
+        return json.loads(fb_resp.text.strip())
+    except Exception as final_err:
+        raise ValueError(f"Impossibile analizzare la risposta AI. Errore finale: {final_err}")
 
 
 async def generate_response_letter(

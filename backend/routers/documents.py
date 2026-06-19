@@ -18,6 +18,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 FREE_PLAN_LIMIT = 3
 
+# Email degli amministratori — hanno accesso illimitato senza pagare
+ADMIN_EMAILS = {
+    os.getenv("ADMIN_EMAIL", "").strip().lower(),
+    "haroun@burobot.it",   # aggiungi qui la tua email
+}
+
+
 
 def get_supabase() -> Client:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
@@ -28,7 +35,11 @@ def get_supabase() -> Client:
 async def check_usage_limit(user_id: str, supabase: Client, email: str = ""):
     """Controlla se l'utente free ha superato il limite mensile."""
     from datetime import datetime, timezone
-    
+
+    # ADMIN BYPASS — accesso illimitato per test
+    if email.strip().lower() in ADMIN_EMAILS:
+        return True
+
     try:
         profile = supabase.table("profiles").select("plan").eq("id", user_id).single().execute()
         plan = profile.data.get("plan", "free") if (profile and profile.data) else "free"
