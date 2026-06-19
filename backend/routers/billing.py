@@ -12,12 +12,12 @@ from dependencies import get_current_user
 
 router = APIRouter()
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").strip()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 
 PRICE_MAP = {
     "base": os.getenv("STRIPE_PRICE_BASE"),

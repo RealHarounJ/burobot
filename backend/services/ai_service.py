@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 # Configura Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 genai.configure(api_key=GEMINI_API_KEY)
 
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge_base"

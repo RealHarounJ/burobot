@@ -7,8 +7,8 @@ from fastapi import HTTPException, Header
 from supabase import create_client
 import os
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 
 
 async def get_current_user(authorization: str = Header(None)):

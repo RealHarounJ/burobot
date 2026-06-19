@@ -11,7 +11,7 @@ import base64
 import asyncio
 import os
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY", "").strip())
 
 
 async def extract_text_from_image(image_bytes: bytes) -> str:
