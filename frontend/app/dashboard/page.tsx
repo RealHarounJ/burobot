@@ -78,36 +78,41 @@ async function exportToPDF(doc: Document, letter: string, plan: string, userEmai
   pdf.setTextColor(30, 30, 50);
   pdf.setFontSize(16);
   pdf.setFont("helvetica", "bold");
-  pdf.text(doc.document_type || doc.file_name, margin, y);
+  pdf.text(doc.document_type || doc.file_name || "Documento", margin, y);
   y += 8;
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(100, 100, 120);
-  pdf.text(`File: ${doc.file_name} — ${new Date(doc.created_at).toLocaleDateString("it-IT")}`, margin, y);
+  const dateStr = doc.created_at ? new Date(doc.created_at).toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT");
+  pdf.text(`File: ${doc.file_name || "N/D"} — ${dateStr}`, margin, y);
   y += 12;
 
   // Urgency
-  const urg = doc.analysis.urgenza;
+  const rawUrgency = doc.analysis?.urgenza || "bassa";
+  const urg = rawUrgency.toLowerCase();
+  const uLabel = urgencyLabel[urg] || urgencyLabel.bassa;
   pdf.setFontSize(10);
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(urg === "alta" ? 220 : urg === "media" ? 180 : 50, urg === "alta" ? 50 : urg === "media" ? 130 : 180, 50);
-  pdf.text(`Urgenza: ${urgencyLabel[urg]?.label || urg}`, margin, y);
+  pdf.text(`Urgenza: ${uLabel.label}`, margin, y);
   y += 10;
 
   // Deadline & Amount
   pdf.setTextColor(30, 30, 50);
-  if (doc.analysis.scadenza) {
+  const scadenza = doc.analysis?.scadenza;
+  const importo = doc.analysis?.importo;
+  if (scadenza) {
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
     pdf.text(`⏰ Scadenza: `, margin, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(doc.analysis.scadenza, margin + 30, y);
+    pdf.text(scadenza, margin + 30, y);
     y += 7;
   }
-  if (doc.analysis.importo) {
+  if (importo) {
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
     pdf.text(`💶 Importo: `, margin, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(doc.analysis.importo, margin + 28, y);
+    pdf.text(importo, margin + 28, y);
     y += 7;
   }
   y += 4;
@@ -126,7 +131,8 @@ async function exportToPDF(doc: Document, letter: string, plan: string, userEmai
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(40, 40, 60);
-  const lines = pdf.splitTextToSize(doc.analysis.spiegazione, W - margin * 2);
+  const spiegazione = doc.analysis?.spiegazione || "Nessuna spiegazione disponibile.";
+  const lines = pdf.splitTextToSize(spiegazione, W - margin * 2);
   pdf.text(lines, margin, y);
   y += lines.length * 5 + 8;
 
@@ -139,7 +145,8 @@ async function exportToPDF(doc: Document, letter: string, plan: string, userEmai
   pdf.setFontSize(9);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(40, 40, 60);
-  doc.analysis.azioni.forEach((a, i) => {
+  const azioni = doc.analysis?.azioni || [];
+  azioni.forEach((a, i) => {
     const aLines = pdf.splitTextToSize(`${i + 1}. ${a}`, W - margin * 2 - 5);
     pdf.text(aLines, margin + 5, y);
     y += aLines.length * 5 + 3;
@@ -176,7 +183,8 @@ async function exportToPDF(doc: Document, letter: string, plan: string, userEmai
     pdf.text(`BuroBot © ${new Date().getFullYear()} — ${userEmail} — Pag. ${i}/${pages}`, W / 2, 290, { align: "center" });
   }
 
-  pdf.save(`burobot_${doc.file_name.replace(/\.[^.]+$/, "")}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  const safeFilename = (doc.file_name || "documento").replace(/\.[^.]+$/, "");
+  pdf.save(`burobot_${safeFilename}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 /* ─────────── COMPONENTS ─────────── */
