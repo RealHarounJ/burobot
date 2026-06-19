@@ -22,7 +22,7 @@ app = FastAPI(
 origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url:
-    origins.append(frontend_url.rstrip("/"))
+    origins.append(frontend_url.strip().rstrip("/"))
 origins.extend(["https://burobot.it", "https://www.burobot.it"])
 
 app.add_middleware(
@@ -42,15 +42,6 @@ app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "BuroBot API", "version": "1.0.0"}
-
-
-@app.get("/api/debug/cors")
-async def debug_cors():
-    import os
-    return {
-        "FRONTEND_URL": os.getenv("FRONTEND_URL"),
-        "origins": origins
-    }
 
 
 @app.get("/health")
