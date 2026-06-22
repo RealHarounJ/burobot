@@ -248,6 +248,109 @@ function StatCards({ usage, history }: { usage: Usage | null; history: Document[
   );
 }
 
+const docTypesGuide = [
+  {
+    id: "cartelle",
+    category: "Cartelle & Accertamenti",
+    icon: "🏛️",
+    formats: "PDF, JPG, PNG, WEBP",
+    problem: "Linguaggio giuridico ostile e volutamente complesso, sanzioni nascoste che raddoppiano e date di scadenza di 60 giorni che decorrono in modo non trasparente.",
+    solution: "Rileva gli importi effettivi dovuti, calcola la scadenza reale a partire dalla notifica e compila istanze di autotutela o bozze di ricorso.",
+    mockup: {
+      document_type: "Cartella di Pagamento (AdE Riscossione)",
+      urgenza: "alta",
+      scadenza: "Entro 60gg dalla notifica",
+      importo: "€1.432,50",
+      spiegazione: "Si tratta di una cartella esattoriale relativa a tasse non pagate nel 2023. Comprende sanzioni e interessi di mora aggiuntivi che possono essere contestati se non hai ricevuto prima l'avviso bonario.",
+      azioni: [
+        "Verifica se la cartella ti è stata notificata regolarmente via PEC.",
+        "Se non hai mai ricevuto l'atto originario, puoi presentare ricorso.",
+        "Se l'importo è corretto, richiedi la rateizzazione fino a 72 rate."
+      ]
+    }
+  },
+  {
+    id: "inps",
+    category: "Comunicazioni INPS",
+    icon: "📮",
+    formats: "PDF, JPG, PNG, WEBP",
+    problem: "Lettere complesse che richiedono la restituzione di somme erogate (es. indebiti pensionistici o ricalcoli ISEE) senza spiegare chiaramente il motivo.",
+    solution: "Verifica se l'errore è imputabile all'INPS (rendendo l'indebito insequestrabile e non restituibile per legge) e scrive la contestazione formale.",
+    mockup: {
+      document_type: "Notifica di Indebito Pensionistico",
+      urgenza: "media",
+      scadenza: "Entro 30gg per opposizione",
+      importo: "€2.800,00",
+      spiegazione: "L'INPS richiede la restituzione di somme erogate in eccedenza sulla pensione. La legge italiana stabilisce che se l'errore è dell'INPS e tu eri in buona fede, le somme non vanno restituite.",
+      azioni: [
+        "Controlla se hai comunicato correttamente tutti i tuoi redditi nei modelli RED.",
+        "Genera la lettera di contestazione formale basata sulla normativa della sanatoria INPS.",
+        "Invia la diffida tramite raccomandata A/R o PEC."
+      ]
+    }
+  },
+  {
+    id: "multe",
+    category: "Multe & Verbali",
+    icon: "🚗",
+    formats: "PDF, JPG, PNG, WEBP",
+    problem: "Tempi strettissimi: solo 5 giorni per lo sconto del 30% e 60 giorni per il ricorso. Scritte minuscole e scarse informazioni sui vizi di forma rilevabili.",
+    solution: "Calcola la scadenza esatta per pagare al minimo, evidenzia vizi formali comuni (es. taratura autovelox) e scrive l'istanza in autotutela.",
+    mockup: {
+      document_type: "Verbale CdS (Polizia Municipale)",
+      urgenza: "alta",
+      scadenza: "5gg sconto / 60gg ricorso",
+      importo: "€168,00 (scontato €117,60)",
+      spiegazione: "Verbale di contestazione per eccesso di velocità rilevato tramite autovelox. La notifica deve avvenire entro 90 giorni dall'infrazione, altrimenti il verbale è nullo.",
+      azioni: [
+        "Verifica che la data di notifica non superi i 90gg dal giorno della multa.",
+        "Se il verbale non cita gli estremi del decreto di taratura dell'autovelox, puoi fare ricorso.",
+        "Scegli se pagare ridotto o generare il ricorso per il Prefetto."
+      ]
+    }
+  },
+  {
+    id: "contratti",
+    category: "Contratti Civili",
+    icon: "📋",
+    formats: "PDF",
+    problem: "Clausole vessatorie scritte in piccolo, obbligo di rinnovo automatico tacito e penali sproporzionate in caso di recesso anticipato.",
+    solution: "Scansiona il documento per evidenziare i vincoli temporali, le finestre di disdetta preventiva e segnala le clausole illegittime da far modificare.",
+    mockup: {
+      document_type: "Contratto di Locazione Abitativa",
+      urgenza: "bassa",
+      scadenza: "Disdetta 6 mesi prima",
+      importo: null,
+      spiegazione: "Contratto di affitto 4+4. BuroBot rileva una clausola vessatoria sulla manutenzione straordinaria a carico dell'inquilino, che per legge spetta invece al locatore.",
+      azioni: [
+        "Chiedi l'eliminazione della clausola vessatoria sulla manutenzione.",
+        "Prendi nota del termine di 6 mesi per l'invio della raccomandata di disdetta.",
+        "Registra il contratto all'Agenzia delle Entrate entro 30 giorni per evitare nullità."
+      ]
+    }
+  },
+  {
+    id: "bollette",
+    category: "Bollette & Conguagli",
+    icon: "💶",
+    formats: "PDF, JPG, PNG, WEBP",
+    problem: "Fatture con conguagli retroattivi esorbitanti risalenti a diversi anni fa o tariffe unilaterali modificate senza preavviso.",
+    solution: "Evidenzia se le richieste di conguaglio sono cadute in prescrizione (che in Italia è di 2 anni per luce, gas e acqua) e genera il reclamo formale.",
+    mockup: {
+      document_type: "Fattura Conguaglio Gas (Servizio Elettrico)",
+      urgenza: "media",
+      scadenza: "Scadenza bolletta 28/06/2026",
+      importo: "€874,20",
+      spiegazione: "Conguaglio per consumi stimati dal 2023 al 2025. Per legge, i consumi più vecchi di 2 anni sono prescritti e non possono essere pretesi dal fornitore.",
+      azioni: [
+        "Eccepisci la prescrizione biennale per la quota di consumi risalente a più di 2 anni fa.",
+        "Invia la richiesta di storno e ricalcolo della fattura tramite PEC.",
+        "Non sospendere il pagamento della quota non prescritta per evitare il distacco."
+      ]
+    }
+  }
+];
+
 /* ─────────── MAIN DASHBOARD ─────────── */
 export default function Dashboard() {
   const router = useRouter();
@@ -270,6 +373,7 @@ export default function Dashboard() {
 
   // Tab (per piani superiori)
   const [activeTab, setActiveTab] = useState<"analisi" | "contratti" | "team">("analisi");
+  const [activeDocTab, setActiveDocTab] = useState("cartelle");
 
   const fileRef = useRef<HTMLInputElement>(null);
   const plan = usage?.plan || "free";
@@ -791,25 +895,125 @@ export default function Dashboard() {
                   </div>
                 );
               })() : (
-                <div className="glass-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 40px", minHeight: "500px", textAlign: "center" }}>
-                  <div style={{ fontSize: "5rem", marginBottom: "20px" }}>🤖</div>
-                  <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "12px" }}>
-                    {easyMode ? "Ciao! Sono BuroBot" : "Pronto ad aiutarti"}
-                  </h2>
-                  <p style={{ color: "var(--text-muted)", maxWidth: "380px", fontSize: "var(--font-base)", lineHeight: 1.7 }}>
-                    {easyMode
-                      ? "Carica una lettera o un documento e ti spiego tutto in parole semplici. Poi posso scrivere la risposta al posto tuo!"
-                      : "Carica un documento dalla colonna sinistra o selezionane uno dalla cronologia."}
-                  </p>
-                  {easyMode && (
-                    <div style={{ marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px", maxWidth: "320px" }}>
-                      {["📮 Lettere dell'INPS", "💰 Avvisi di pagamento", "🏛️ Lettere del Comune", "📋 Contratti da firmare"].map((item) => (
-                        <div key={item} style={{ background: "rgba(99,102,241,0.08)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "10px 16px", fontSize: "var(--font-base)", color: "var(--text-muted)" }}>
-                          {item}
+                <div className="glass-card animate-fade-up" style={{ display: "flex", flexDirection: "column", padding: "32px", gap: "24px", minHeight: "500px" }}>
+                  <div style={{ textAlign: "center", marginBottom: "8px" }}>
+                    <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 900, marginBottom: "8px", color: "var(--text-main)" }}>
+                      Guida all'Analisi Documenti
+                    </h2>
+                    <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
+                      BuroBot è addestrato per estrarre e risolvere i problemi critici dei documenti burocratici italiani. Seleziona una tipologia per esplorarla.
+                    </p>
+                  </div>
+
+                  {/* Mini Selector Tabs */}
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+                    {docTypesGuide.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveDocTab(item.id)}
+                        className={activeDocTab === item.id ? "btn-primary" : "btn-secondary"}
+                        style={{
+                          padding: "6px 12px",
+                          fontSize: "var(--font-xs)",
+                          borderRadius: "var(--radius-md)",
+                          minHeight: "auto",
+                          boxShadow: activeDocTab === item.id ? "0 2px 6px rgba(30, 58, 138, 0.1)" : "none"
+                        }}
+                      >
+                        {item.icon} {item.category.split(" & ")[0]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {(() => {
+                    const selected = docTypesGuide.find(d => d.id === activeDocTab) || docTypesGuide[0];
+                    return (
+                      <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px",
+                        background: "var(--bg-dark)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "20px"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "var(--font-sm)", fontWeight: 700, color: "var(--text-main)" }}>
+                            {selected.icon} {selected.category}
+                          </span>
+                          <span className="badge" style={{ fontSize: "var(--font-xs)" }}>
+                            Formati: {selected.formats}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {/* Problem */}
+                        <div style={{
+                          background: "#fef2f2",
+                          borderLeft: "3.5px solid var(--danger)",
+                          padding: "12px 14px",
+                          borderRadius: "var(--radius-sm)",
+                          borderTop: "1px solid #fee2e2",
+                          borderRight: "1px solid #fee2e2",
+                          borderBottom: "1px solid #fee2e2"
+                        }}>
+                          <span style={{ fontSize: "var(--font-xs)", fontWeight: 700, color: "var(--danger)", display: "block", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                            ⚠️ Il Problema Burocratico
+                          </span>
+                          <p style={{ fontSize: "var(--font-sm)", color: "#991b1b", lineHeight: 1.5 }}>
+                            {selected.problem}
+                          </p>
+                        </div>
+
+                        {/* Solution */}
+                        <div style={{
+                          background: "#f0fdf4",
+                          borderLeft: "3.5px solid var(--success)",
+                          padding: "12px 14px",
+                          borderRadius: "var(--radius-sm)",
+                          borderTop: "1px solid #dcfce7",
+                          borderRight: "1px solid #dcfce7",
+                          borderBottom: "1px solid #dcfce7"
+                        }}>
+                          <span style={{ fontSize: "var(--font-xs)", fontWeight: 700, color: "var(--success)", display: "block", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                            🚀 Come lo risolve BuroBot
+                          </span>
+                          <p style={{ fontSize: "var(--font-sm)", color: "#166534", lineHeight: 1.5 }}>
+                            {selected.solution}
+                          </p>
+                        </div>
+
+                        {/* Load Mockup Button */}
+                        <button
+                          onClick={() => {
+                            const newDoc = {
+                              id: "mock_" + selected.id,
+                              file_name: "Esempio_" + selected.category.replace(/[^a-zA-Z0-9]/g, "_") + ".pdf",
+                              document_type: selected.mockup.document_type,
+                              created_at: new Date().toISOString(),
+                              analysis: {
+                                tipo_documento: selected.mockup.document_type,
+                                spiegazione: selected.mockup.spiegazione,
+                                scadenza: selected.mockup.scadenza,
+                                importo: selected.mockup.importo,
+                                azioni: selected.mockup.azioni,
+                                urgenza: selected.mockup.urgenza as any
+                              }
+                            };
+                            setSelectedDoc(newDoc);
+                          }}
+                          className="btn-primary"
+                          style={{
+                            marginTop: "8px",
+                            width: "100%",
+                            padding: "10px",
+                            fontSize: "var(--font-sm)"
+                          }}
+                        >
+                          ⚡ Carica esempio di analisi interattiva
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
