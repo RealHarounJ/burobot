@@ -133,16 +133,16 @@ export default function Home() {
             <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#f59e0b" }} />
             <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
           </div>
-          <div style={{ background: "rgba(99,102,241,0.08)", borderRadius: "12px", padding: "20px", marginBottom: "16px", border: "1px solid rgba(99,102,241,0.2)" }}>
-            <p style={{ color: "#6b7280", fontSize: "0.8rem", marginBottom: "8px" }}>📄 Comunicazione_INPS_36bis.pdf</p>
-            <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>L'Agenzia delle Entrate ha rilevato una differenza di €340...</p>
+          <div style={{ background: "var(--bg-card-hover)", borderRadius: "12px", padding: "20px", marginBottom: "16px", border: "1px solid var(--border)" }}>
+            <p style={{ color: "var(--text-dim)", fontSize: "0.8rem", marginBottom: "8px" }}>📄 Comunicazione_INPS_36bis.pdf</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>L'Agenzia delle Entrate ha rilevato una differenza di €340...</p>
           </div>
-          <div style={{ borderLeft: "3px solid #6366f1", paddingLeft: "16px" }}>
-            <p style={{ color: "#a78bfa", fontSize: "0.85rem", fontWeight: 600, marginBottom: "8px" }}>🤖 BuroBot spiega:</p>
-            <p style={{ color: "#e2e8f0", fontSize: "0.95rem", marginBottom: "12px" }}>
+          <div style={{ borderLeft: "3px solid var(--primary)", paddingLeft: "16px" }}>
+            <p style={{ color: "var(--primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "8px" }}>🤖 BuroBot spiega:</p>
+            <p style={{ color: "var(--text-main)", fontSize: "0.95rem", marginBottom: "12px" }}>
               Questa è una <strong>comunicazione di irregolarità (36-bis)</strong>. L'Agenzia ha trovato una differenza di <strong>€340</strong> nella tua dichiarazione.
             </p>
-            <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginBottom: "16px" }}>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "16px" }}>
               ⏰ Hai tempo fino al <strong>15 luglio</strong> per rispondere.
             </p>
             <div style={{ display: "flex", gap: "8px" }}>
@@ -155,18 +155,18 @@ export default function Home() {
 
       {/* FEATURES */}
       <section style={{ maxWidth: "1100px", margin: "0 auto", padding: "80px 24px" }}>
-        <h2 style={{ textAlign: "center", fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px" }}>
+        <h2 style={{ textAlign: "center", fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px", color: "var(--text-main)" }}>
           Tutto quello che ti serve
         </h2>
-        <p style={{ textAlign: "center", color: "#94a3b8", marginBottom: "60px", fontSize: "1.1rem" }}>
+        <p style={{ textAlign: "center", color: "var(--text-muted)", marginBottom: "60px", fontSize: "1.1rem" }}>
           BuroBot gestisce qualsiasi documento burocratico italiano
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
           {features.map((f, i) => (
             <div key={i} className="feature-card">
               <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}>{f.icon}</div>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px", color: "#f1f5f9" }}>{f.title}</h3>
-              <p style={{ color: "#6b7280", lineHeight: 1.6, fontSize: "0.95rem" }}>{f.desc}</p>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "8px", color: "var(--text-main)" }}>{f.title}</h3>
+              <p style={{ color: "var(--text-muted)", lineHeight: 1.6, fontSize: "0.95rem" }}>{f.desc}</p>
             </div>
           ))}
         </div>
@@ -200,10 +200,10 @@ export default function Home() {
 
       {/* PRICING */}
       <section id="pricing" style={{ maxWidth: "1100px", margin: "0 auto", padding: "80px 24px" }}>
-        <h2 style={{ textAlign: "center", fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px" }}>
+        <h2 style={{ textAlign: "center", fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px", color: "var(--text-main)" }}>
           Prezzi semplici e trasparenti
         </h2>
-        <p style={{ textAlign: "center", color: "#94a3b8", marginBottom: "60px", fontSize: "1.1rem" }}>
+        <p style={{ textAlign: "center", color: "var(--text-muted)", marginBottom: "60px", fontSize: "1.1rem" }}>
           Inizia gratis. Passa al piano pagante solo quando ne hai bisogno.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", alignItems: "center" }}>
@@ -212,16 +212,16 @@ export default function Home() {
               {p.featured && (
                 <div className="badge" style={{ marginBottom: "16px", fontSize: "0.8rem" }}>⭐ Più popolare</div>
               )}
-              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "4px" }}>{p.name}</h3>
-              <p style={{ color: "#6b7280", fontSize: "0.9rem", marginBottom: "20px" }}>{p.desc}</p>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "4px", color: "var(--text-main)" }}>{p.name}</h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "20px" }}>{p.desc}</p>
               <div style={{ marginBottom: "28px" }}>
-                <span style={{ fontSize: "2.8rem", fontWeight: 900, color: "#f1f5f9" }}>{p.price}</span>
-                <span style={{ color: "#6b7280" }}>{p.period}</span>
+                <span style={{ fontSize: "2.8rem", fontWeight: 900, color: "var(--text-main)" }}>{p.price}</span>
+                <span style={{ color: "var(--text-muted)" }}>{p.period}</span>
               </div>
               <ul style={{ listStyle: "none", marginBottom: "28px", display: "flex", flexDirection: "column", gap: "10px" }}>
                 {p.features.map((f, j) => (
-                  <li key={j} style={{ display: "flex", gap: "10px", color: "#94a3b8", fontSize: "0.95rem" }}>
-                    <span style={{ color: "#6366f1" }}>✓</span> {f}
+                  <li key={j} style={{ display: "flex", gap: "10px", color: "var(--text-muted)", fontSize: "0.95rem" }}>
+                    <span style={{ color: "var(--primary)" }}>✓</span> {f}
                   </li>
                 ))}
               </ul>

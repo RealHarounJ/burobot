@@ -197,19 +197,19 @@ function PricingContent() {
               )}
 
               <div style={{ marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "8px" }}>{p.name}</h3>
-                <p style={{ color: "#94a3b8", fontSize: "0.9rem", minHeight: "40px" }}>{p.desc}</p>
+                <h3 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: "8px", color: "var(--text-main)" }}>{p.name}</h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", minHeight: "40px" }}>{p.desc}</p>
                 <div style={{ display: "flex", alignItems: "baseline", marginTop: "16px" }}>
-                  <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "white" }}>{p.price}</span>
-                  <span style={{ color: "#94a3b8", fontSize: "1rem", marginLeft: "4px" }}>{p.period}</span>
+                  <span style={{ fontSize: "2.5rem", fontWeight: 900, color: "var(--text-main)" }}>{p.price}</span>
+                  <span style={{ color: "var(--text-dim)", fontSize: "1rem", marginLeft: "4px" }}>{p.period}</span>
                 </div>
               </div>
 
               <div style={{ flex: 1, marginBottom: "32px" }}>
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "12px" }}>
                   {p.features.map((f, idx) => (
-                    <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "0.95rem", color: "#e2e8f0" }}>
-                      <span style={{ color: "#22c55e", fontWeight: "bold" }}>✓</span>
+                    <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "0.95rem", color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--success)", fontWeight: "bold" }}>✓</span>
                       <span>{f}</span>
                     </li>
                   ))}
