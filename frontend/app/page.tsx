@@ -5,28 +5,28 @@ import Link from "next/link";
 
 const features = [
   {
-    title: "Qualsiasi documento",
-    desc: "INPS, Agenzia Entrate, ISEE, cartelle esattoriali, contratti, lettere legali. BuroBot capisce tutto.",
+    title: "Comprensione Semantica Integrale",
+    desc: "Nessun limite al tipo di documento. BuroBot decodifica atti giudiziari, comunicazioni dell'Agenzia delle Entrate, delibere INPS, contratti commerciali e ISEE, traducendo la complessità legale in risposte immediate.",
   },
   {
-    title: "Risposta in 5 secondi",
-    desc: "Carica una foto o un PDF. In pochi secondi sai esattamente cosa significa e cosa fare.",
+    title: "Analisi Istantanea",
+    desc: "Elaborazione sicura in pochi secondi. Carica un PDF o un'immagine del documento e ottieni subito una spiegazione testuale strutturata, con evidenza del problema e delle scadenze legali.",
   },
   {
-    title: "Genera la risposta",
-    desc: "Hai torto o ragione? BuroBot scrive al posto tuo la lettera di risposta o il ricorso formale.",
+    title: "Generazione Atti & Comunicazioni",
+    desc: "BuroBot compila autonomamente istanze di autotutela, richieste di rateizzazione, contestazioni e bozze di ricorso formale basate sulla normativa vigente, pronte per essere inviate via PEC o raccomandata.",
   },
   {
-    title: "100% privato",
-    desc: "I tuoi documenti non vengono mai condivisi. Elaborazione sicura e crittografata.",
+    title: "Privacy per il Cittadino",
+    desc: "I tuoi dati sensibili rimangono tuoi. La nostra infrastruttura garantisce elaborazioni crittografate end-to-end e la completa riservatezza dei tuoi documenti e delle tue informazioni personali.",
   },
   {
-    title: "Scadenze chiare",
-    desc: "Mai perdere una scadenza. BuroBot evidenzia sempre le date limite e le conseguenze.",
+    title: "Scadenzario e Prevenzione Rischi",
+    desc: "Rilevamento automatico di termini di opposizione, finestre di disdetta e sanzioni. BuroBot ti dice con precisione entro quando agire e quali sono le conseguenze per ciascun scenario.",
   },
   {
-    title: "Solo italiano",
-    desc: "Addestrato sulla normativa italiana aggiornata. Conosce INPS, MEF, AdE meglio di un CAF.",
+    title: "Modello Normativo Italiano",
+    desc: "Addestrato specificamente sulle leggi e sulle procedure italiane. Conosce il Codice della Strada, i decreti previdenziali e la prassi dell'amministrazione finanziaria con precisione professionale.",
   },
 ];
 
@@ -129,10 +129,10 @@ const docTypesGuide = [
 ];
 
 const steps = [
-  { n: "01", title: "Carica il documento", desc: "Scatta una foto o carica il PDF direttamente dall'app." },
-  { n: "02", title: "BuroBot analizza", desc: "L'AI estrae il testo e lo analizza con la normativa italiana." },
-  { n: "03", title: "Ricevi la spiegazione", desc: "Capisci cosa significa, cosa fare e quando farlo." },
-  { n: "04", title: "Genera la risposta", desc: "Se serve, BuroBot scrive la lettera formale per te." },
+  { n: "01", title: "Acquisizione Sicura", desc: "Carica il PDF o scatta una foto al documento cartaceo. L'elaborazione è protetta e crittografata." },
+  { n: "02", title: "Analisi Semantica", desc: "Il nostro modello AI estrae il testo e lo confronta con il codice e le prassi amministrative italiane." },
+  { n: "03", title: "Diagnosi Strutturata", desc: "Ricevi una traduzione in chiaro: cosa significa l'atto, qual è l'importo dovuto e quando scade l'opposizione." },
+  { n: "04", title: "Azione Risolutiva", desc: "Genera in pochi istanti la bozza di istanza di autotutela, ricorso o contestazione per difenderti." },
 ];
 
 const pricing = [
@@ -140,9 +140,9 @@ const pricing = [
     name: "Free",
     price: "€0",
     period: "/mese",
-    desc: "Per provare BuroBot",
-    features: ["3 documenti al mese", "Analisi AI base", "Spiegazione in linguaggio semplice"],
-    cta: "Inizia gratis",
+    desc: "Per la valutazione personale della piattaforma",
+    features: ["3 analisi documentali al mese", "Comprensione semantica base", "Traduzione in linguaggio chiaro", "Calcolo scadenze essenziali"],
+    cta: "Inizia gratuitamente",
     href: "/register",
     featured: false,
   },
@@ -150,9 +150,9 @@ const pricing = [
     name: "Base",
     price: "€9.99",
     period: "/mese",
-    desc: "Per privati e famiglie",
-    features: ["Documenti illimitati", "Generazione lettere di risposta", "Storico documenti", "Priorità analisi"],
-    cta: "Inizia ora",
+    desc: "Per cittadini, famiglie e professionisti",
+    features: ["Analisi documentali illimitate", "Generatore di lettere, ricorsi e autotutele", "Archivio storico permanente", "Elaborazione prioritaria dei file", "Supporto tecnico via email"],
+    cta: "Attiva abbonamento",
     href: "/register?plan=base",
     featured: true,
   },
@@ -160,9 +160,9 @@ const pricing = [
     name: "PMI",
     price: "€49",
     period: "/mese",
-    desc: "Per aziende e commercialisti",
-    features: ["Tutto di Base", "Multi-utente (5 account)", "API access", "Dashboard analytics", "Supporto prioritario"],
-    cta: "Per le aziende",
+    desc: "Per aziende, CAF e studi di consulenza",
+    features: ["Tutto del piano Base", "Fino a 5 account collaboratori condivisi", "Analisi avanzata contratti commerciali", "Accesso API limitato per sviluppatori", "Supporto prioritario WhatsApp ed Email"],
+    cta: "Attiva piano aziendale",
     href: "/register?plan=pmi",
     featured: false,
   },
@@ -196,26 +196,24 @@ export default function Home() {
       {/* HERO */}
       <section style={{ paddingTop: "140px", paddingBottom: "100px", textAlign: "center", maxWidth: "900px", margin: "0 auto", padding: "140px 24px 100px" }}>
         <div className="badge" style={{ marginBottom: "24px" }}>
-          Piattaforma per la burocrazia italiana
+          Copilot di Intelligenza Artificiale per la Burocrazia Italiana
         </div>
-        <h1 style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)", fontWeight: 900, lineHeight: 1.1, marginBottom: "24px" }}>
-          La burocrazia italiana{" "}
-          <span className="gradient-text">spiegata in 5 secondi</span>
+        <h1 style={{ fontSize: "clamp(2.5rem, 6vw, 4.2rem)", fontWeight: 900, lineHeight: 1.1, marginBottom: "24px" }}>
+          Riconquista il controllo sui tuoi <span className="gradient-text">documenti pubblici</span>
         </h1>
-        <p style={{ fontSize: "1.25rem", color: "var(--text-muted)", maxWidth: "600px", margin: "0 auto 40px", lineHeight: 1.7 }}>
-          Carica una foto del documento. BuroBot lo legge, lo spiega in linguaggio semplice
-          e genera la risposta al posto tuo. Niente più CAF, niente più confusione.
+        <p style={{ fontSize: "1.25rem", color: "var(--text-muted)", maxWidth: "720px", margin: "0 auto 40px", lineHeight: 1.7 }}>
+          BuroBot traduce la complessità del linguaggio giuridico e amministrativo in risposte chiare, scadenze certe e azioni immediate. Carica contratti, cartelle esattoriali o notifiche e ottieni all'istante spiegazioni comprensibili e atti di risposta pronti per l'invio.
         </p>
         <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/register" className="btn-primary" style={{ fontSize: "1.1rem", padding: "16px 32px" }}>
-            Inizia gratis — è gratuito
+            Inizia gratuitamente
           </Link>
           <Link href="#come-funziona" className="btn-secondary" style={{ fontSize: "1.1rem", padding: "16px 32px" }}>
             Come funziona
           </Link>
         </div>
         <p style={{ marginTop: "20px", color: "var(--text-dim)", fontSize: "0.9rem" }}>
-          Nessuna carta di credito • 3 documenti gratis al mese
+          Nessuna carta di credito richiesta • 3 analisi mensili gratuite
         </p>
 
         {/* Hero mockup */}
@@ -224,9 +222,9 @@ export default function Home() {
           padding: "32px", textAlign: "left"
         }}>
           <div style={{ display: "flex", gap: "8px", marginBottom: "20px" }}>
-            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
-            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#f59e0b" }} />
-            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--border-strong)" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--border-strong)" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--border-strong)" }} />
           </div>
           <div style={{ background: "var(--bg-card-hover)", borderRadius: "12px", padding: "20px", marginBottom: "16px", border: "1px solid var(--border)" }}>
             <p style={{ color: "var(--text-dim)", fontSize: "0.8rem", marginBottom: "8px" }}>Comunicazione_INPS_36bis.pdf</p>
@@ -432,17 +430,17 @@ export default function Home() {
           {steps.map((s, i) => (
             <div key={i} style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
               <div style={{
-                minWidth: "56px", height: "56px", borderRadius: "16px",
-                background: "linear-gradient(135deg, rgba(99,102,241,0.3), rgba(167,139,250,0.2))",
-                border: "1px solid rgba(99,102,241,0.4)",
+                minWidth: "56px", height: "56px", borderRadius: "8px",
+                background: "var(--bg-card-hover)",
+                border: "1px solid var(--border-strong)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "1rem", fontWeight: 800, color: "#a78bfa"
+                fontSize: "1rem", fontWeight: 800, color: "var(--accent)"
               }}>
                 {s.n}
               </div>
               <div style={{ paddingTop: "8px" }}>
                 <h3 style={{ fontWeight: 700, fontSize: "1.1rem", marginBottom: "6px" }}>{s.title}</h3>
-                <p style={{ color: "#6b7280", lineHeight: 1.6 }}>{s.desc}</p>
+                <p style={{ color: "var(--text-muted)", lineHeight: 1.6 }}>{s.desc}</p>
               </div>
             </div>
           ))}
@@ -452,16 +450,16 @@ export default function Home() {
       {/* PRICING */}
       <section id="pricing" style={{ maxWidth: "1100px", margin: "0 auto", padding: "80px 24px" }}>
         <h2 style={{ textAlign: "center", fontSize: "2.5rem", fontWeight: 800, marginBottom: "16px", color: "var(--text-main)" }}>
-          Prezzi semplici e trasparenti
+          Tariffe trasparenti per cittadini e imprese
         </h2>
         <p style={{ textAlign: "center", color: "var(--text-muted)", marginBottom: "60px", fontSize: "1.1rem" }}>
-          Inizia gratis. Passa al piano pagante solo quando ne hai bisogno.
+          Inizia gratuitamente. Estendi le funzionalità quando necessario.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", alignItems: "center" }}>
           {pricing.map((p, i) => (
             <div key={i} className={`pricing-card ${p.featured ? "featured" : ""}`}>
               {p.featured && (
-                <div className="badge" style={{ marginBottom: "16px", fontSize: "0.8rem" }}>Più popolare</div>
+                <div className="badge" style={{ marginBottom: "16px", fontSize: "0.8rem" }}>Più scelto</div>
               )}
               <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginBottom: "4px", color: "var(--text-main)" }}>{p.name}</h3>
               <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginBottom: "20px" }}>{p.desc}</p>
@@ -485,14 +483,13 @@ export default function Home() {
       </section>
 
       {/* CTA FINALE */}
-      <section style={{ maxWidth: "700px", margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+      <section style={{ maxWidth: "780px", margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
         <div className="glass-card" style={{ padding: "60px 40px" }}>
           <h2 style={{ fontSize: "2.2rem", fontWeight: 800, marginBottom: "16px" }}>
-            Basta perdere ore con la burocrazia
+            Riconquista il tuo tempo oggi stesso
           </h2>
           <p style={{ color: "var(--text-muted)", fontSize: "1.1rem", marginBottom: "32px" }}>
-            Unisciti a chi ha già scelto di delegare la burocrazia all'AI.
-            Gratis per iniziare, senza carta di credito.
+            Unisciti a migliaia di cittadini e imprese che utilizzano BuroBot per azzerare l'incertezza legale e semplificare la gestione amministrativa quotidiana.
           </p>
           <Link href="/register" className="btn-primary" style={{ fontSize: "1.1rem", padding: "16px 36px" }}>
             Prova BuroBot gratis
@@ -501,9 +498,10 @@ export default function Home() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid var(--border)", padding: "40px 24px", textAlign: "center", color: "var(--text-dim)" }}>
-        <div style={{ fontWeight: 700, color: "var(--primary)", marginBottom: "12px" }}>BuroBot</div>
-        <p style={{ fontSize: "0.9rem" }}>© 2026 BuroBot. L'AI che spiega la burocrazia italiana.</p>
+      <footer style={{ borderTop: "1px solid var(--border)", padding: "60px 24px", textAlign: "center", color: "var(--text-dim)", background: "var(--bg-card)" }}>
+        <div style={{ fontWeight: 800, color: "var(--primary)", marginBottom: "12px", fontSize: "1.1rem" }}>BuroBot</div>
+        <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>Modello AI di ausilio amministrativo addestrato sulla normativa italiana vigente.</p>
+        <p style={{ fontSize: "0.85rem", color: "var(--text-dim)", marginTop: "6px" }}>© 2026 BuroBot. Tutti i diritti riservati.</p>
         <div style={{ marginTop: "16px", display: "flex", gap: "24px", justifyContent: "center", fontSize: "0.85rem" }}>
           <Link href="/privacy" style={{ color: "#4b5563", textDecoration: "none" }}>Privacy Policy</Link>
           <Link href="/termini" style={{ color: "#4b5563", textDecoration: "none" }}>Termini di Servizio</Link>
