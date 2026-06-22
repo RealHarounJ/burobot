@@ -591,7 +591,7 @@ export default function Dashboard() {
 
         {/* TAB: ANALISI PRINCIPALE */}
         {activeTab === "analisi" && (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 420px) 1fr", gap: "28px", alignItems: "start" }}>
+          <div className="dashboard-layout">
 
             {/* LEFT: Upload + History */}
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>

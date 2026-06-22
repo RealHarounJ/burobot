@@ -549,3 +549,50 @@ li[style*="rgba(99, 102, 241, 0.05)"] {
   border: 2.5px solid #e2e8f0 !important;
   border-top-color: var(--primary) !important;
 }
+
+/* ===================== RESPONSIVE LAYOUT & MEDIA QUERIES ===================== */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  main, .hero-bg {
+    padding-top: 80px !important;
+  }
+  
+  nav {
+    padding: 12px 16px !important;
+  }
+  
+  .glass-card, .feature-card, .pricing-card {
+    padding: 20px 16px !important;
+  }
+
+  h1 {
+    font-size: 1.85rem !important;
+  }
+  h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .stat-card {
+    padding: 12px 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn-primary, .btn-secondary, .btn-success {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
