@@ -136,7 +136,7 @@ function PricingContent() {
         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 900, marginBottom: "20px" }}>
           Scegli il piano ideale per <span className="gradient-text">le tue esigenze</span>
         </h1>
-        <p style={{ color: "#94a3b8", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto" }}>
+        <p style={{ color: "var(--text-muted)", fontSize: "1.15rem", maxWidth: "600px", margin: "0 auto" }}>
           Nessun costo nascosto. Puoi disdire il tuo abbonamento in qualsiasi momento con un semplice click.
         </p>
 
@@ -269,12 +269,12 @@ export default function PricingPage() {
         <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
           {user ? (
             <>
-              <Link href="/dashboard" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.95rem" }}>Dashboard</Link>
-              <Link href="/profile" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.95rem" }}>Profilo</Link>
+              <Link href="/dashboard" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Dashboard</Link>
+              <Link href="/profile" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Profilo</Link>
             </>
           ) : (
             <>
-              <Link href="/login" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.95rem" }}>Accedi</Link>
+              <Link href="/login" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Accedi</Link>
               <Link href="/register" className="btn-primary" style={{ padding: "10px 20px", fontSize: "0.9rem" }}>
                 Inizia gratis →
               </Link>

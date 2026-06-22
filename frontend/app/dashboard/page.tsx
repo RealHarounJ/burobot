@@ -757,13 +757,13 @@ export default function Dashboard() {
                         {scadenza && (
                           <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
                             <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Scadenza</p>
-                            <p style={{ fontWeight: 800, color: "#fbbf24", fontSize: "var(--font-lg)" }}>{scadenza}</p>
+                            <p style={{ fontWeight: 800, color: "var(--warning)", fontSize: "var(--font-lg)" }}>{scadenza}</p>
                           </div>
                         )}
                         {importo && (
                           <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
                             <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Importo</p>
-                            <p style={{ fontWeight: 800, color: "#f87171", fontSize: "var(--font-lg)" }}>{importo}</p>
+                            <p style={{ fontWeight: 800, color: "var(--danger)", fontSize: "var(--font-lg)" }}>{importo}</p>
                           </div>
                         )}
                       </div>
@@ -774,7 +774,7 @@ export default function Dashboard() {
                       <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
                         Cosa significa questo documento
                       </h3>
-                      <p style={{ color: "#cbd5e1", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{spiegazione}</p>
+                      <p style={{ color: "var(--text-main)", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{spiegazione}</p>
                     </div>
 
                     {/* Azioni */}
@@ -784,9 +784,9 @@ export default function Dashboard() {
                       </h3>
                       <ol style={{ paddingLeft: "0", display: "flex", flexDirection: "column", gap: "10px", listStyle: "none" }}>
                         {azioni.map((a, i) => (
-                          <li key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", background: "rgba(99,102,241,0.05)", borderRadius: "var(--radius-md)", padding: "12px 16px" }}>
+                          <li key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start", background: "var(--bg-card-hover)", borderRadius: "var(--radius-md)", padding: "12px 16px", border: "1px solid var(--border)" }}>
                             <span style={{ background: "var(--primary)", color: "white", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "var(--font-xs)", flexShrink: 0 }}>{i + 1}</span>
-                            <span style={{ color: "#cbd5e1", lineHeight: 1.6, fontSize: "var(--font-base)" }}>{a}</span>
+                            <span style={{ color: "var(--text-main)", lineHeight: 1.6, fontSize: "var(--font-base)" }}>{a}</span>
                           </li>
                         ))}
                       </ol>

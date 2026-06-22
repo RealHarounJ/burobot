@@ -38,18 +38,18 @@ export default function ForgotPasswordPage() {
       </div>
 
       <div style={{ width: "100%", maxWidth: "420px" }}>
-        <div className="glass-card" style={{ padding: "40px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+        <div className="glass-card" style={{ padding: "40px" }}>
           <h2 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "8px", textAlign: "center" }}>
             Ripristina Password
           </h2>
-          <p style={{ color: "#94a3b8", textAlign: "center", marginBottom: "32px", fontSize: "0.9rem" }}>
+          <p style={{ color: "var(--text-muted)", textAlign: "center", marginBottom: "32px", fontSize: "0.9rem" }}>
             Inserisci la tua email per ricevere il link di ripristino
           </p>
 
           {error && (
             <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.85rem" }}>
-            {error}
-          </div>
+              {error}
+            </div>
           )}
 
           {success && (
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
 
           <form onSubmit={handleResetRequest} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label htmlFor="email" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+              <label htmlFor="email" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
                 Indirizzo Email
               </label>
               <input
@@ -70,15 +70,7 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nome@esempio.it"
-                style={{
-                  background: "rgba(10, 10, 15, 0.6)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  borderRadius: "12px",
-                  padding: "14px",
-                  color: "white",
-                  fontSize: "1rem",
-                  outline: "none"
-                }}
+                className="input-field"
               />
             </div>
 
@@ -88,9 +80,9 @@ export default function ForgotPasswordPage() {
           </form>
         </div>
 
-        <p style={{ textAlign: "center", marginTop: "24px", color: "#94a3b8", fontSize: "0.9rem" }}>
+        <p style={{ textAlign: "center", marginTop: "24px", color: "var(--text-muted)", fontSize: "0.9rem" }}>
           Torna al{" "}
-          <a href="/login" style={{ color: "#a78bfa", fontWeight: 600, textDecoration: "none" }}>
+          <a href="/login" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>
             Login
           </a>
         </p>

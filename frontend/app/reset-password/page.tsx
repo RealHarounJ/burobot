@@ -55,18 +55,18 @@ export default function ResetPasswordPage() {
       </div>
 
       <div style={{ width: "100%", maxWidth: "420px" }}>
-        <div className="glass-card" style={{ padding: "40px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+        <div className="glass-card" style={{ padding: "40px" }}>
           <h2 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "8px", textAlign: "center" }}>
             Nuova Password
           </h2>
-          <p style={{ color: "#94a3b8", textAlign: "center", marginBottom: "32px", fontSize: "0.9rem" }}>
+          <p style={{ color: "var(--text-muted)", textAlign: "center", marginBottom: "32px", fontSize: "0.9rem" }}>
             Inserisci la tua nuova password d'accesso
           </p>
 
           {error && (
             <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.85rem" }}>
-            {error}
-          </div>
+              {error}
+            </div>
           )}
 
           {success && (
@@ -77,7 +77,7 @@ export default function ResetPasswordPage() {
 
           <form onSubmit={handleReset} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label htmlFor="password" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+              <label htmlFor="password" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
                 Nuova Password
               </label>
               <input
@@ -87,20 +87,12 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimo 6 caratteri"
-                style={{
-                  background: "rgba(10, 10, 15, 0.6)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  borderRadius: "12px",
-                  padding: "14px",
-                  color: "white",
-                  fontSize: "1rem",
-                  outline: "none"
-                }}
+                className="input-field"
               />
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label htmlFor="confirmPassword" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+              <label htmlFor="confirmPassword" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
                 Conferma Password
               </label>
               <input
@@ -110,15 +102,7 @@ export default function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Reinserisci la password"
-                style={{
-                  background: "rgba(10, 10, 15, 0.6)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  borderRadius: "12px",
-                  padding: "14px",
-                  color: "white",
-                  fontSize: "1rem",
-                  outline: "none"
-                }}
+                className="input-field"
               />
             </div>
 

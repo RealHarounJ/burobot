@@ -104,11 +104,11 @@ function RegisterForm() {
 
   return (
     <div style={{ width: "100%", maxWidth: "420px" }}>
-      <div className="glass-card" style={{ padding: "40px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
+      <div className="glass-card" style={{ padding: "40px" }}>
         <h2 style={{ fontSize: "2rem", fontWeight: 800, marginBottom: "8px", textAlign: "center" }}>
           Inizia con <span className="gradient-text">BuroBot</span>
         </h2>
-        <p style={{ color: "#94a3b8", textAlign: "center", marginBottom: "32px", fontSize: "0.95rem" }}>
+        <p style={{ color: "var(--text-muted)", textAlign: "center", marginBottom: "32px", fontSize: "0.95rem" }}>
           Crea un account gratuito in pochi secondi
         </p>
 
@@ -142,7 +142,7 @@ function RegisterForm() {
 
         <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label htmlFor="name" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+            <label htmlFor="name" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
               Nome Completo
             </label>
             <input
@@ -152,23 +152,12 @@ function RegisterForm() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Mario Rossi"
-              style={{
-                background: "rgba(10, 10, 15, 0.6)",
-                border: "1px solid rgba(99, 102, 241, 0.2)",
-                borderRadius: "12px",
-                padding: "14px 16px",
-                color: "white",
-                fontSize: "1rem",
-                outline: "none",
-                transition: "all 0.3s ease"
-              }}
-              onFocus={(e) => e.target.style.borderColor = "#6366f1"}
-              onBlur={(e) => e.target.style.borderColor = "rgba(99, 102, 241, 0.2)"}
+              className="input-field"
             />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label htmlFor="email" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+            <label htmlFor="email" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
               Indirizzo Email
             </label>
             <input
@@ -178,23 +167,12 @@ function RegisterForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nome@esempio.it"
-              style={{
-                background: "rgba(10, 10, 15, 0.6)",
-                border: "1px solid rgba(99, 102, 241, 0.2)",
-                borderRadius: "12px",
-                padding: "14px 16px",
-                color: "white",
-                fontSize: "1rem",
-                outline: "none",
-                transition: "all 0.3s ease"
-              }}
-              onFocus={(e) => e.target.style.borderColor = "#6366f1"}
-              onBlur={(e) => e.target.style.borderColor = "rgba(99, 102, 241, 0.2)"}
+              className="input-field"
             />
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <label htmlFor="password" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+            <label htmlFor="password" style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>
               Password
             </label>
             <input
@@ -204,18 +182,7 @@ function RegisterForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimo 6 caratteri"
-              style={{
-                background: "rgba(10, 10, 15, 0.6)",
-                border: "1px solid rgba(99, 102, 241, 0.2)",
-                borderRadius: "12px",
-                padding: "14px 16px",
-                color: "white",
-                fontSize: "1rem",
-                outline: "none",
-                transition: "all 0.3s ease"
-              }}
-              onFocus={(e) => e.target.style.borderColor = "#6366f1"}
-              onBlur={(e) => e.target.style.borderColor = "rgba(99, 102, 241, 0.2)"}
+              className="input-field"
             />
           </div>
 
@@ -236,9 +203,9 @@ function RegisterForm() {
         </form>
 
         <div style={{ display: "flex", alignItems: "center", margin: "24px 0", gap: "16px" }}>
-          <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
-          <span style={{ fontSize: "0.8rem", color: "#4b5563" }}>OPPURE</span>
-          <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
+          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+          <span style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>OPPURE</span>
+          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
         </div>
 
         <div style={{ display: "flex", gap: "12px" }}>
@@ -259,9 +226,9 @@ function RegisterForm() {
         </div>
       </div>
 
-      <p style={{ textAlign: "center", marginTop: "24px", color: "#94a3b8", fontSize: "0.9rem" }}>
+      <p style={{ textAlign: "center", marginTop: "24px", color: "var(--text-muted)", fontSize: "0.9rem" }}>
         Hai già un account?{" "}
-        <Link href={`/login${searchParams.toString() ? '?' + searchParams.toString() : ''}`} style={{ color: "#a78bfa", fontWeight: 600, textDecoration: "none" }}>
+        <Link href={`/login${searchParams.toString() ? '?' + searchParams.toString() : ''}`} style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "underline" }}>
           Accedi
         </Link>
       </p>
