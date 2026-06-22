@@ -79,7 +79,7 @@ export default function ProfilePage() {
         display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
         <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}>
-          🤖 BuroBot
+          BuroBot
         </Link>
         <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
           <Link href="/dashboard" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Dashboard</Link>
@@ -101,7 +101,7 @@ export default function ProfilePage() {
             marginBottom: "24px",
             fontSize: "0.95rem"
           }}>
-            ❌ {error}
+            {error}
           </div>
         )}
 

@@ -153,7 +153,7 @@ function PricingContent() {
             marginLeft: "auto",
             fontSize: "0.95rem"
           }}>
-            ❌ {error}
+            {error}
           </div>
         )}
       </div>
@@ -259,13 +259,12 @@ export default function PricingPage() {
       <nav style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         padding: "16px 40px",
-        background: "rgba(10,10,15,0.8)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(99,102,241,0.15)",
+        background: "#ffffff",
+        borderBottom: "1px solid var(--border)",
         display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
-        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, background: "linear-gradient(135deg,#6366f1,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", textDecoration: "none" }}>
-          🤖 BuroBot
+        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}>
+          BuroBot
         </Link>
         <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
           {user ? (

@@ -2,22 +2,22 @@
 
 /* ===================== DESIGN TOKENS (FORMAL LIGHT MODE) ===================== */
 :root {
-  --primary: #1e3a8a;       /* Deep Navy Blue - Institutional & Formal */
-  --primary-dark: #172554;  /* Very Dark Navy */
-  --primary-light: #3b82f6; /* Accent Blue */
-  --accent: #0f766e;        /* Deep Teal */
-  --accent-2: #0369a1;      /* Sky Blue */
-  --success: #16a34a;       /* Clean Green */
-  --warning: #d97706;       /* Clean Amber */
-  --danger: #dc2626;        /* Clean Red */
-  --bg-dark: #f8fafc;       /* Light Slate Gray - Clean System Background */
+  --primary: #191919;       /* Elegant Dark Charcoal */
+  --primary-dark: #000000;  /* Deep Black */
+  --primary-light: #8d5b4c; /* Warm Clay/Terracotta Accent */
+  --accent: #8d5b4c;        /* Terracotta */
+  --accent-2: #4d6b63;      /* Sage Green */
+  --success: #2b5a3e;       /* Deep Muted Forest Green */
+  --warning: #b3662b;       /* Soft Amber/Rust */
+  --danger: #a63a2b;        /* Muted Terracotta Red */
+  --bg-dark: #fbfaf7;       /* Warm Sand/Off-White Background */
   --bg-card: #ffffff;       /* Pure White Card */
-  --bg-card-hover: #f1f5f9;  /* Subtle Light Gray Hover */
-  --border: #e2e8f0;        /* Light Border */
-  --border-strong: #cbd5e1; /* Stronger Border */
-  --text-main: #0f172a;     /* Deep Slate Text */
-  --text-muted: #475569;    /* Medium Slate Text */
-  --text-dim: #64748b;      /* Muted Slate Text */
+  --bg-card-hover: #f5f3ee;  /* Subtle Warm Sand Hover */
+  --border: #e6e4de;        /* Warm Light Gray Border */
+  --border-strong: #cfccc4; /* Stronger Warm Gray Border */
+  --text-main: #191919;     /* Charcoal Text */
+  --text-muted: #5c5a55;    /* Muted Slate-Brown Text */
+  --text-dim: #8c8a83;      /* Dimmed Sand Text */
 
   /* Font sizes — standard */
   --font-xs: 0.75rem;
@@ -28,11 +28,11 @@
   --font-2xl: 1.5rem;
   --font-3xl: 1.875rem;
 
-  /* Spacing & Borders */
-  --radius-sm: 4px;         /* Sharper, more formal corners */
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
+  /* Spacing & Borders - Sharper Corners for Formal style */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
   --radius-full: 9999px;
 }
 
@@ -103,6 +103,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-weight: 600;
+  color: var(--text-main);
 }
 
 /* ===================== BACKGROUNDS ===================== */

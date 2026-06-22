@@ -49,8 +49,8 @@ export default function ResetPasswordPage() {
   return (
     <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }} className="hero-bg">
       <div style={{ position: "absolute", top: "24px", left: "24px" }}>
-        <a href="/" style={{ fontSize: "1.4rem", fontWeight: 800, background: "linear-gradient(135deg,#6366f1,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", textDecoration: "none" }}>
-          🤖 BuroBot
+        <a href="/" style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}>
+          BuroBot
         </a>
       </div>
 
@@ -65,8 +65,8 @@ export default function ResetPasswordPage() {
 
           {error && (
             <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "20px", fontSize: "0.85rem" }}>
-              ❌ {error}
-            </div>
+            {error}
+          </div>
           )}
 
           {success && (

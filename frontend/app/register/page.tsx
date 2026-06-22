@@ -122,7 +122,7 @@ function RegisterForm() {
             marginBottom: "20px",
             fontSize: "0.9rem"
           }}>
-            ❌ {error}
+            {error}
           </div>
         )}
 
@@ -282,8 +282,8 @@ export default function RegisterPage() {
       className="hero-bg"
     >
       <div style={{ position: "absolute", top: "24px", left: "24px" }}>
-        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, background: "linear-gradient(135deg,#6366f1,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", textDecoration: "none" }}>
-          🤖 BuroBot
+        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}>
+          BuroBot
         </Link>
       </div>
 

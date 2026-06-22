@@ -40,9 +40,9 @@ const hasPlan = (userPlan: string, required: string) =>
   (PLAN_RANK[userPlan] ?? 0) >= (PLAN_RANK[required] ?? 0);
 
 const urgencyLabel: Record<string, { label: string; color: string; bg: string }> = {
-  alta:  { label: "🔴 Urgente",       color: "#f87171", bg: "rgba(239,68,68,0.12)"  },
-  media: { label: "🟡 Media priorità", color: "#fbbf24", bg: "rgba(245,158,11,0.12)" },
-  bassa: { label: "🟢 Nessuna urgenza",color: "#4ade80", bg: "rgba(34,197,94,0.12)"  },
+  alta:  { label: "Urgente",          color: "#f87171", bg: "rgba(239,68,68,0.12)"  },
+  media: { label: "Priorità media",   color: "#fbbf24", bg: "rgba(245,158,11,0.12)" },
+  bassa: { label: "Nessuna urgenza",  color: "#4ade80", bg: "rgba(34,197,94,0.12)"  },
 };
 
 const planBadge: Record<string, { label: string; cls: string }> = {
@@ -103,16 +103,16 @@ async function exportToPDF(doc: Document, letter: string, plan: string, userEmai
   const importo = doc.analysis?.importo;
   if (scadenza) {
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
-    pdf.text(`⏰ Scadenza: `, margin, y);
+    pdf.text(`Scadenza: `, margin, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(scadenza, margin + 30, y);
+    pdf.text(scadenza, margin + 20, y);
     y += 7;
   }
   if (importo) {
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(9);
-    pdf.text(`💶 Importo: `, margin, y);
+    pdf.text(`Importo: `, margin, y);
     pdf.setFont("helvetica", "normal");
-    pdf.text(importo, margin + 28, y);
+    pdf.text(importo, margin + 18, y);
     y += 7;
   }
   y += 4;
@@ -196,7 +196,7 @@ function EasyModeToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () 
       className={`easy-toggle ${enabled ? "active" : ""}`}
       title={enabled ? "Disattiva modalità facile" : "Attiva modalità facile (font grandi)"}
     >
-      {enabled ? "🔤 Modalità Facile ON" : "🔤 Modalità Facile"}
+      {enabled ? "Modalità Facile ON" : "Modalità Facile"}
     </button>
   );
 }
@@ -207,8 +207,7 @@ function PlanGate({ required, current, children }: { required: string; current: 
   const planColors: Record<string, string> = { base: "badge-base", pmi: "badge-pmi", studio: "badge-studio" };
   return (
     <div className={`plan-gate ${required === "studio" ? "plan-gate-studio" : required === "pmi" ? "plan-gate-pmi" : ""}`}>
-      <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🔒</div>
-      <p style={{ fontWeight: 700, marginBottom: "6px", fontSize: "var(--font-base)" }}>
+      <p style={{ fontWeight: 700, marginBottom: "6px", fontSize: "var(--font-base)", color: "var(--text-main)" }}>
         Funzionalità {planNames[required] || required}
       </p>
       <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", marginBottom: "16px" }}>
@@ -252,7 +251,6 @@ const docTypesGuide = [
   {
     id: "cartelle",
     category: "Cartelle & Accertamenti",
-    icon: "🏛️",
     formats: "PDF, JPG, PNG, WEBP",
     problem: "Linguaggio giuridico ostile e volutamente complesso, sanzioni nascoste che raddoppiano e date di scadenza di 60 giorni che decorrono in modo non trasparente.",
     solution: "Rileva gli importi effettivi dovuti, calcola la scadenza reale a partire dalla notifica e compila istanze di autotutela o bozze di ricorso.",
@@ -272,7 +270,6 @@ const docTypesGuide = [
   {
     id: "inps",
     category: "Comunicazioni INPS",
-    icon: "📮",
     formats: "PDF, JPG, PNG, WEBP",
     problem: "Lettere complesse che richiedono la restituzione di somme erogate (es. indebiti pensionistici o ricalcoli ISEE) senza spiegare chiaramente il motivo.",
     solution: "Verifica se l'errore è imputabile all'INPS (rendendo l'indebito insequestrabile e non restituibile per legge) e scrive la contestazione formale.",
@@ -292,7 +289,6 @@ const docTypesGuide = [
   {
     id: "multe",
     category: "Multe & Verbali",
-    icon: "🚗",
     formats: "PDF, JPG, PNG, WEBP",
     problem: "Tempi strettissimi: solo 5 giorni per lo sconto del 30% e 60 giorni per il ricorso. Scritte minuscole e scarse informazioni sui vizi di forma rilevabili.",
     solution: "Calcola la scadenza esatta per pagare al minimo, evidenzia vizi formali comuni (es. taratura autovelox) e scrive l'istanza in autotutela.",
@@ -312,7 +308,6 @@ const docTypesGuide = [
   {
     id: "contratti",
     category: "Contratti Civili",
-    icon: "📋",
     formats: "PDF",
     problem: "Clausole vessatorie scritte in piccolo, obbligo di rinnovo automatico tacito e penali sproporzionate in caso di recesso anticipato.",
     solution: "Scansiona il documento per evidenziare i vincoli temporali, le finestre di disdetta preventiva e segnala le clausole illegittime da far modificare.",
@@ -332,7 +327,6 @@ const docTypesGuide = [
   {
     id: "bollette",
     category: "Bollette & Conguagli",
-    icon: "💶",
     formats: "PDF, JPG, PNG, WEBP",
     problem: "Fatture con conguagli retroattivi esorbitanti risalenti a diversi anni fa o tariffe unilaterali modificate senza preavviso.",
     solution: "Evidenzia se le richieste di conguaglio sono cadute in prescrizione (che in Italia è di 2 anni per luce, gas e acqua) e genera il reclamo formale.",
@@ -508,11 +502,10 @@ export default function Dashboard() {
       }}>
         <Link href="/" style={{
           fontSize: "1.3rem", fontWeight: 900,
-          background: "linear-gradient(135deg,#6366f1,#a78bfa)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          color: "var(--primary)",
           textDecoration: "none", whiteSpace: "nowrap",
         }}>
-          🤖 BuroBot
+          BuroBot
         </Link>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -531,7 +524,6 @@ export default function Dashboard() {
       {/* ── EASY MODE BANNER ── */}
       {easyMode && (
         <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(167,139,250,0.1))", borderBottom: "1px solid var(--border)", padding: "10px 32px", display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "1.5rem" }}>👴👵</span>
           <span style={{ fontWeight: 700, fontSize: "var(--font-base)" }}>Modalità Facile attiva</span>
           <span style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>— Testi più grandi, interfaccia semplificata</span>
         </div>
@@ -540,9 +532,9 @@ export default function Dashboard() {
       {/* ── TABS (solo piani PMI e Studio) ── */}
       {hasPlan(plan, "pmi") && (
         <div style={{ background: "rgba(10,10,15,0.6)", borderBottom: "1px solid var(--border)", padding: "12px 32px", display: "flex", gap: "8px" }}>
-          <button style={tabStyle("analisi")} onClick={() => setActiveTab("analisi")}>📄 Analisi Documenti</button>
-          <button style={tabStyle("contratti")} onClick={() => setActiveTab("contratti")}>📋 Contratti Commerciali</button>
-          {hasPlan(plan, "pmi") && <button style={tabStyle("team")} onClick={() => setActiveTab("team")}>👥 Gestione Team</button>}
+          <button style={tabStyle("analisi")} onClick={() => setActiveTab("analisi")}>Analisi Documenti</button>
+          <button style={tabStyle("contratti")} onClick={() => setActiveTab("contratti")}>Contratti Commerciali</button>
+          {hasPlan(plan, "pmi") && <button style={tabStyle("team")} onClick={() => setActiveTab("team")}>Gestione Team</button>}
         </div>
       )}
 
@@ -555,14 +547,12 @@ export default function Dashboard() {
         {/* TAB: CONTRATTI COMMERCIALI */}
         {activeTab === "contratti" && (
           <div className="glass-card animate-fade-up" style={{ padding: "40px", textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "16px" }}>📋</div>
             <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "12px" }}>Analisi Contratti Commerciali</h2>
             <p style={{ color: "var(--text-muted)", maxWidth: "500px", margin: "0 auto 24px", lineHeight: 1.7, fontSize: "var(--font-base)" }}>
               Carica un contratto commerciale, di locazione, di fornitura o qualsiasi accordo commerciale. BuroBot lo analizza evidenziando clausole rischiose, obblighi e scadenze.
             </p>
             <div className="upload-zone" onClick={() => fileRef.current?.click()} style={{ maxWidth: "500px", margin: "0 auto" }}>
               <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) { handleFile(e.target.files[0]); setActiveTab("analisi"); } }} />
-              <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>📤</div>
               <p style={{ fontWeight: 700, fontSize: "var(--font-lg)" }}>Carica il contratto PDF</p>
               <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "6px" }}>Clicca qui o trascina il file</p>
             </div>
@@ -574,7 +564,7 @@ export default function Dashboard() {
           <div className="glass-card animate-fade-up" style={{ padding: "40px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
               <div>
-                <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "6px" }}>👥 Gestione Team</h2>
+                <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 900, marginBottom: "6px" }}>Gestione Team</h2>
                 <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
                   {hasPlan(plan, "studio") ? "Account collaboratori illimitati" : "Fino a 5 collaboratori"}
                 </p>
@@ -584,16 +574,15 @@ export default function Dashboard() {
               </button>
             </div>
             <div style={{ background: "rgba(99,102,241,0.05)", border: "1px dashed rgba(99,102,241,0.3)", borderRadius: "var(--radius-lg)", padding: "40px", textAlign: "center" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "12px" }}>📧</div>
               <p style={{ fontWeight: 700, marginBottom: "8px", fontSize: "var(--font-base)" }}>Nessun collaboratore ancora</p>
               <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>Invita i tuoi colleghi via email per condividere i documenti analizzati.</p>
             </div>
             {hasPlan(plan, "studio") && (
               <div style={{ marginTop: "24px", padding: "20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)" }}>
-                <p style={{ fontWeight: 700, color: "#fbbf24", marginBottom: "6px" }}>🌟 Studio Pro</p>
+                <p style={{ fontWeight: 700, color: "var(--primary-light)", marginBottom: "6px" }}>Studio Pro</p>
                 <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
                   Il tuo piano Studio include un account manager dedicato. Contatta il tuo referente:
-                  <a href="mailto:studio@burobot.it" style={{ color: "#fbbf24", marginLeft: "6px" }}>studio@burobot.it</a>
+                  <a href="mailto:studio@burobot.it" style={{ color: "var(--primary-light)", marginLeft: "6px" }}>studio@burobot.it</a>
                 </p>
               </div>
             )}
@@ -610,15 +599,15 @@ export default function Dashboard() {
               {/* UPLOAD */}
               <div className="glass-card" style={{ padding: "28px" }}>
                 <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                  📤 Analizza Documento
+                  Analizza Documento
                 </h2>
 
                 {easyMode && (
                   <div style={{ background: "rgba(99,102,241,0.1)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "14px", marginBottom: "16px", fontSize: "var(--font-base)" }}>
                     <strong>Come funziona:</strong><br />
-                    1️⃣ Clicca qui sotto e scegli il documento<br />
-                    2️⃣ Clicca il bottone viola "Analizza ora"<br />
-                    3️⃣ Aspetta 10 secondi — BuroBot ti spiega tutto!
+                    1. Clicca qui sotto e scegli il documento<br />
+                    2. Clicca il bottone "Analizza ora"<br />
+                    3. Aspetta 10 secondi — BuroBot ti spiega tutto!
                   </div>
                 )}
 
@@ -634,13 +623,11 @@ export default function Dashboard() {
                     onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
                   {file ? (
                     <div>
-                      <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>{file.type === "application/pdf" ? "📄" : "🖼️"}</div>
                       <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-base)", wordBreak: "break-all" }}>{file.name}</p>
                       <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "4px" }}>{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
                   ) : (
                     <div>
-                      <div style={{ fontSize: "2.5rem", marginBottom: "10px" }}>📂</div>
                       <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-lg)" }}>
                         {easyMode ? "Tocca qui per scegliere il documento" : "Trascina il file o clicca"}
                       </p>
@@ -652,7 +639,7 @@ export default function Dashboard() {
                 {file && !loading && (
                   <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
                     <button onClick={handleAnalyze} className="btn-primary" style={{ flex: 1, padding: "14px", fontSize: "var(--font-base)" }}>
-                      🔍 Analizza ora
+                      Analizza ora
                     </button>
                     <button onClick={handleReset} className="btn-secondary" style={{ padding: "14px 16px", fontSize: "var(--font-base)" }}>✕</button>
                   </div>
@@ -668,19 +655,19 @@ export default function Dashboard() {
                 )}
 
                 {error && (
-                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "var(--radius-md)", padding: "14px", marginTop: "14px", color: "#f87171", fontSize: "var(--font-sm)", lineHeight: 1.5 }}>
-                    ⚠️ {error}
+                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "var(--radius-md)", padding: "14px", marginTop: "14px", color: "var(--danger)", fontSize: "var(--font-sm)", lineHeight: 1.5 }}>
+                    {error}
                   </div>
                 )}
 
                 {/* PIANO FREE WARNING */}
                 {plan === "free" && usage && (usage.remaining ?? 0) <= 1 && (
                   <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "var(--radius-md)", padding: "14px", marginTop: "14px" }}>
-                    <p style={{ color: "#fbbf24", fontWeight: 700, fontSize: "var(--font-sm)", marginBottom: "8px" }}>
-                      ⚠️ {usage.remaining === 0 ? "Hai esaurito i documenti gratuiti" : `Ti rimane solo ${usage.remaining} documento gratuito`}
+                    <p style={{ color: "var(--warning)", fontWeight: 700, fontSize: "var(--font-sm)", marginBottom: "8px" }}>
+                      {usage.remaining === 0 ? "Hai esaurito i documenti gratuiti" : `Ti rimane solo ${usage.remaining} documento gratuito`}
                     </p>
                     <Link href="/pricing" className="btn-primary" style={{ fontSize: "var(--font-xs)", padding: "8px 16px" }}>
-                      Passa a Base — €9.99/mese →
+                      Passa a Base — €9.99/mese
                     </Link>
                   </div>
                 )}
@@ -688,10 +675,9 @@ export default function Dashboard() {
 
               {/* HISTORY */}
               <div className="glass-card" style={{ padding: "28px" }}>
-                <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px" }}>📋 Cronologia</h2>
+                <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px" }}>Cronologia</h2>
                 {history.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-dim)" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "8px" }}>📭</div>
                     <p style={{ fontSize: "var(--font-sm)" }}>Nessun documento analizzato</p>
                   </div>
                 ) : (
@@ -759,9 +745,9 @@ export default function Dashboard() {
                           style={{ padding: "8px 14px", fontSize: "var(--font-xs)" }}
                           title="Scarica analisi in PDF"
                         >
-                          {exportingPdf ? <div className="spinner" style={{ width: 14, height: 14 }} /> : "📄 PDF"}
+                          {exportingPdf ? <div className="spinner" style={{ width: 14, height: 14 }} /> : "PDF"}
                         </button>
-                        <button onClick={handleReset} className="btn-secondary" style={{ padding: "8px 12px", fontSize: "var(--font-xs)" }}>✕ Chiudi</button>
+                        <button onClick={handleReset} className="btn-secondary" style={{ padding: "8px 12px", fontSize: "var(--font-xs)" }}>Chiudi</button>
                       </div>
                     </div>
 
@@ -770,13 +756,13 @@ export default function Dashboard() {
                       <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                         {scadenza && (
                           <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
-                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>⏰ Scadenza</p>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Scadenza</p>
                             <p style={{ fontWeight: 800, color: "#fbbf24", fontSize: "var(--font-lg)" }}>{scadenza}</p>
                           </div>
                         )}
                         {importo && (
                           <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "var(--radius-md)", padding: "14px 20px", flex: 1, minWidth: "140px" }}>
-                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>💶 Importo</p>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Importo</p>
                             <p style={{ fontWeight: 800, color: "#f87171", fontSize: "var(--font-lg)" }}>{importo}</p>
                           </div>
                         )}
@@ -786,7 +772,7 @@ export default function Dashboard() {
                     {/* Spiegazione */}
                     <div>
                       <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        📖 Cosa significa questo documento
+                        Cosa significa questo documento
                       </h3>
                       <p style={{ color: "#cbd5e1", lineHeight: 1.8, fontSize: "var(--font-base)" }}>{spiegazione}</p>
                     </div>
@@ -794,7 +780,7 @@ export default function Dashboard() {
                     {/* Azioni */}
                     <div>
                       <h3 style={{ fontWeight: 700, marginBottom: "10px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
-                        ✅ Cosa devi fare {easyMode ? "ADESSO" : "ora"}
+                        Cosa devi fare {easyMode ? "ADESSO" : "ora"}
                       </h3>
                       <ol style={{ paddingLeft: "0", display: "flex", flexDirection: "column", gap: "10px", listStyle: "none" }}>
                         {azioni.map((a, i) => (
@@ -811,7 +797,7 @@ export default function Dashboard() {
                   {/* LETTERA — solo Base+ */}
                   <div>
                     <h3 style={{ fontWeight: 800, marginBottom: "14px", color: "var(--accent)", fontSize: "var(--font-base)", display: "flex", alignItems: "center", gap: "6px" }}>
-                      ✍️ {easyMode ? "Scrivi una lettera di risposta" : "Genera Risposta Formale"}
+                      {easyMode ? "Scrivi una lettera di risposta" : "Genera Risposta Formale"}
                     </h3>
 
                     <PlanGate required="base" current={plan}>
@@ -819,13 +805,13 @@ export default function Dashboard() {
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <button onClick={() => navigator.clipboard.writeText(generatedLetter).then(() => alert("Copiato!"))} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
-                              📋 Copia
+                              Copia
                             </button>
                             <button onClick={handleExportPDF} disabled={exportingPdf} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
-                              {exportingPdf ? <div className="spinner" style={{ width: 12, height: 12 }} /> : "📄 Scarica PDF"}
+                              {exportingPdf ? <div className="spinner" style={{ width: 12, height: 12 }} /> : "Scarica PDF"}
                             </button>
                             <button onClick={() => setGeneratedLetter("")} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
-                              🔄 Rigenera
+                              Rigenera
                             </button>
                           </div>
                           <textarea
@@ -838,16 +824,16 @@ export default function Dashboard() {
                         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                           {easyMode && (
                             <div style={{ background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-md)", padding: "14px", fontSize: "var(--font-base)" }}>
-                              💡 <strong>Come funziona:</strong> Scegli che tipo di risposta vuoi (ricorso, rateizzazione...) e spiega la tua situazione. BuroBot scrive la lettera per te!
+                              Come funziona: Scegli che tipo di risposta vuoi (ricorso, rateizzazione...) e spiega la tua situazione. BuroBot scrive la lettera per te!
                             </div>
                           )}
                           <div>
                             <label style={{ fontSize: "var(--font-sm)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>Tipo di risposta</label>
                             <select value={responseType} onChange={(e) => setResponseType(e.target.value)} className="input-field">
-                              <option value="contestazione">⚖️ Ricorso / Contestazione</option>
-                              <option value="rateizzazione">📅 Richiesta Rateizzazione</option>
-                              <option value="autotutela">🛡️ Istanza di Autotutela</option>
-                              <option value="informazioni">❓ Richiesta di Chiarimenti</option>
+                              <option value="contestazione">Ricorso / Contestazione</option>
+                              <option value="rateizzazione">Richiesta Rateizzazione</option>
+                              <option value="autotutela">Istanza di Autotutela</option>
+                              <option value="informazioni">Richiesta di Chiarimenti</option>
                             </select>
                           </div>
                           <div>
@@ -869,8 +855,8 @@ export default function Dashboard() {
                             style={{ padding: "15px", fontSize: "var(--font-base)" }}
                           >
                             {generatingLetter
-                              ? <><div className="spinner" style={{ width: 18, height: 18 }} />{easyMode ? " Sto scrivendo la lettera..." : " Generazione in corso..."}</>
-                              : easyMode ? "✍️ Scrivi la lettera per me!" : "✍️ Genera lettera formale"}
+                              ? <><div className="spinner" style={{ width: 18, height: 18 }} />{easyMode ? " Scrittura lettera in corso..." : " Generazione in corso..."}</>
+                              : easyMode ? "Scrivi la lettera per me!" : "Genera lettera formale"}
                           </button>
                         </div>
                       )}
@@ -881,13 +867,13 @@ export default function Dashboard() {
                   {hasPlan(plan, "studio") && (
                     <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
                       <p style={{ fontWeight: 700, color: "#fbbf24", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        🌟 Studio Pro — Export Avanzato
+                        Studio Pro — Export Avanzato
                       </p>
                       <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", marginBottom: "14px" }}>
                         Il PDF include intestazione professionale con i dati del tuo studio. Personalizzabile con il tuo logo.
                       </p>
                       <button onClick={handleExportPDF} disabled={exportingPdf} className="btn-success" style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}>
-                        {exportingPdf ? <><div className="spinner" style={{ width: 16, height: 16 }} /> Generando...</> : "📄 Scarica PDF Professionale"}
+                        {exportingPdf ? <><div className="spinner" style={{ width: 16, height: 16 }} /> Generando...</> : "Scarica PDF Professionale"}
                       </button>
                     </div>
                   )}
@@ -920,7 +906,7 @@ export default function Dashboard() {
                           boxShadow: activeDocTab === item.id ? "0 2px 6px rgba(30, 58, 138, 0.1)" : "none"
                         }}
                       >
-                        {item.icon} {item.category.split(" & ")[0]}
+                        {item.category.split(" & ")[0]}
                       </button>
                     ))}
                   </div>
@@ -939,7 +925,7 @@ export default function Dashboard() {
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span style={{ fontSize: "var(--font-sm)", fontWeight: 700, color: "var(--text-main)" }}>
-                            {selected.icon} {selected.category}
+                            {selected.category}
                           </span>
                           <span className="badge" style={{ fontSize: "var(--font-xs)" }}>
                             Formati: {selected.formats}
@@ -957,7 +943,7 @@ export default function Dashboard() {
                           borderBottom: "1px solid #fee2e2"
                         }}>
                           <span style={{ fontSize: "var(--font-xs)", fontWeight: 700, color: "var(--danger)", display: "block", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.02em" }}>
-                            ⚠️ Il Problema Burocratico
+                            Il Problema Burocratico
                           </span>
                           <p style={{ fontSize: "var(--font-sm)", color: "#991b1b", lineHeight: 1.5 }}>
                             {selected.problem}
@@ -975,7 +961,7 @@ export default function Dashboard() {
                           borderBottom: "1px solid #dcfce7"
                         }}>
                           <span style={{ fontSize: "var(--font-xs)", fontWeight: 700, color: "var(--success)", display: "block", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.02em" }}>
-                            🚀 Come lo risolve BuroBot
+                            Come lo risolve BuroBot
                           </span>
                           <p style={{ fontSize: "var(--font-sm)", color: "#166534", lineHeight: 1.5 }}>
                             {selected.solution}
@@ -1009,7 +995,7 @@ export default function Dashboard() {
                             fontSize: "var(--font-sm)"
                           }}
                         >
-                          ⚡ Carica esempio di analisi interattiva
+                          Carica esempio di analisi interattiva
                         </button>
                       </div>
                     );
