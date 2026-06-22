@@ -87,21 +87,6 @@ function RegisterForm() {
     }
   };
 
-  const handleOAuthLogin = async (provider: "google" | "github") => {
-    setError(null);
-    const supabase = createClient();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectUrl)}`,
-      },
-    });
-
-    if (oauthError) {
-      setError(oauthError.message);
-    }
-  };
-
   return (
     <div style={{ width: "100%", maxWidth: "420px" }}>
       <div className="glass-card" style={{ padding: "40px" }}>
@@ -201,29 +186,6 @@ function RegisterForm() {
             {loading ? <div className="spinner" style={{ width: 20, height: 20 }} /> : "Registrati →"}
           </button>
         </form>
-
-        <div style={{ display: "flex", alignItems: "center", margin: "24px 0", gap: "16px" }}>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-          <span style={{ fontSize: "0.8rem", color: "var(--text-dim)" }}>OPPURE</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-        </div>
-
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button
-            onClick={() => handleOAuthLogin("google")}
-            className="btn-secondary"
-            style={{ flex: 1, justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}
-          >
-            Google
-          </button>
-          <button
-            onClick={() => handleOAuthLogin("github")}
-            className="btn-secondary"
-            style={{ flex: 1, justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}
-          >
-            GitHub
-          </button>
-        </div>
       </div>
 
       <p style={{ textAlign: "center", marginTop: "24px", color: "var(--text-muted)", fontSize: "0.9rem" }}>
