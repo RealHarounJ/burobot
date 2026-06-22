@@ -74,17 +74,16 @@ export default function ProfilePage() {
       <nav style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         padding: "16px 40px",
-        background: "rgba(10,10,15,0.8)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(99,102,241,0.15)",
+        background: "#ffffff",
+        borderBottom: "1px solid var(--border)",
         display: "flex", alignItems: "center", justifyContent: "space-between"
       }}>
-        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, background: "linear-gradient(135deg,#6366f1,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", textDecoration: "none" }}>
+        <Link href="/" style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}>
           🤖 BuroBot
         </Link>
         <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-          <Link href="/dashboard" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.95rem" }}>Dashboard</Link>
-          <Link href="/pricing" style={{ color: "#94a3b8", textDecoration: "none", fontSize: "0.95rem" }}>Prezzi</Link>
+          <Link href="/dashboard" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Dashboard</Link>
+          <Link href="/pricing" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "0.95rem" }}>Prezzi</Link>
           <button onClick={handleLogout} className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.85rem" }}>Disconnetti</button>
         </div>
       </nav>
@@ -109,12 +108,12 @@ export default function ProfilePage() {
         <div className="glass-card" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "28px" }}>
           
           {/* USER INFO */}
-          <div style={{ display: "flex", alignItems: "center", gap: "20px", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", borderBottom: "1px solid var(--border)", paddingBottom: "24px" }}>
             <div style={{
               width: "64px",
               height: "64px",
               borderRadius: "50%",
-              background: "linear-gradient(135deg, #6366f1, #a78bfa)",
+              background: "linear-gradient(135deg, var(--primary), var(--primary-light))",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -125,18 +124,18 @@ export default function ProfilePage() {
               {displayName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 style={{ fontSize: "1.4rem", fontWeight: 800 }}>{displayName}</h2>
-              <p style={{ color: "#94a3b8", fontSize: "0.95rem", marginTop: "4px" }}>{user.email}</p>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-main)" }}>{displayName}</h2>
+              <p style={{ color: "var(--text-dim)", fontSize: "0.95rem", marginTop: "4px" }}>{user.email}</p>
             </div>
           </div>
 
           {/* PLAN INFO */}
           <div>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "16px", color: "#94a3b8" }}>Dettagli Abbonamento</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "16px", color: "var(--text-dim)" }}>Dettagli Abbonamento</h3>
             
             <div style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.05)",
+              background: "var(--bg-dark)",
+              border: "1px solid var(--border)",
               borderRadius: "12px",
               padding: "20px",
               display: "flex",
@@ -145,7 +144,7 @@ export default function ProfilePage() {
             }}>
               <div>
                 <span className="badge" style={{ marginBottom: "6px" }}>Piano Attuale</span>
-                <p style={{ fontSize: "1.3rem", fontWeight: 800, color: "white", marginTop: "4px" }}>{planLabel}</p>
+                <p style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--text-main)", marginTop: "4px" }}>{planLabel}</p>
               </div>
 
               {usage?.plan === "free" ? (
@@ -167,12 +166,12 @@ export default function ProfilePage() {
 
           {/* USAGE STATS */}
           <div>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "16px", color: "#94a3b8" }}>Utilizzo Documenti (Mese Corrente)</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "16px", color: "var(--text-dim)" }}>Utilizzo Documenti (Mese Corrente)</h3>
             {loadingUsage ? (
               <div className="spinner" style={{ width: 24, height: 24 }} />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "var(--text-main)" }}>
                   <span>Documenti analizzati:</span>
                   <span style={{ fontWeight: "bold" }}>
                     {usage?.used_this_month} / {usage?.limit ? usage.limit : "∞"}
@@ -180,18 +179,18 @@ export default function ProfilePage() {
                 </div>
                 
                 {usage?.limit && (
-                  <div style={{ width: "100%", height: "8px", background: "rgba(255,255,255,0.08)", borderRadius: "10px", overflow: "hidden" }}>
+                  <div style={{ width: "100%", height: "8px", background: "var(--border)", borderRadius: "10px", overflow: "hidden" }}>
                     <div style={{
                       width: `${Math.min(100, (usage.used_this_month / usage.limit) * 100)}%`,
                       height: "100%",
-                      background: "linear-gradient(90deg, #6366f1, #a78bfa)",
+                      background: "var(--primary)",
                       borderRadius: "10px"
                     }} />
                   </div>
                 )}
                 
                 {usage?.plan === "free" && (
-                  <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "4px" }}>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "4px" }}>
                     Hai ancora {usage.remaining} documenti gratuiti rimasti questo mese. Sblocca caricamenti illimitati con il piano Base.
                   </p>
                 )}
