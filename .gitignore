@@ -18,3 +18,7 @@ node_modules/
 out/
 build/
 .vercel
+
+# Knowledge Base Imports
+backend/knowledge_base/normattiva/
+

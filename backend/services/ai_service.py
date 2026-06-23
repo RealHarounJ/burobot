@@ -17,8 +17,8 @@ from typing import List, Optional
 class DocumentAnalysis(BaseModel):
     tipo_documento: str
     spiegazione: str
-    scadenza: Optional[str]
-    importo: Optional[str]
+    scadenza: str
+    importo: str
     azioni: List[str]
     urgenza: str
     genera_risposta: bool
@@ -70,9 +70,15 @@ def get_rag_index():
     return _rag_index
 
 
+def reset_rag_index():
+    """Resetta l'indice in-memory per forzare il ricaricamento dei documenti."""
+    global _rag_index
+    _rag_index = None
+
+
 def _build_analyze_prompt(text: str, rag_context: str = "") -> str:
-    # Tronca il testo e rimuovi caratteri problematici per il JSON
-    safe_text = text[:3000].replace('\x00', '').replace('\r', ' ')
+    # Tronca il testo (esteso a 15000 per supportare contratti lunghi) e rimuovi caratteri problematici per il JSON
+    safe_text = text[:15000].replace('\x00', '').replace('\r', ' ')
     return f"""{SYSTEM_PROMPT}
 
 Analizza questo documento burocratico italiano.
@@ -146,70 +152,98 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     # Sostituisci apostrofi escaped (invalidi in JSON)
     raw = raw.replace(r"\'", "'").replace("\\'", "'")
 
+    result = None
+
     # Strategia 1: parse diretto
     try:
-        return json.loads(raw)
+        result = json.loads(raw)
     except Exception:
         pass
 
     # Strategia 2: estrai il primo oggetto JSON valido con regex
-    try:
-        import re
-        match = re.search(r'\{.*\}', raw, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-    except Exception:
-        pass
+    if not result:
+        try:
+            import re
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                result = json.loads(match.group())
+        except Exception:
+            pass
 
     # Strategia 3: sanitizza i newline dentro le stringhe
-    try:
-        sanitized = []
-        in_string = False
-        escape = False
-        for char in raw:
-            if char == '"' and not escape:
-                in_string = not in_string
-            escape = (char == '\\' and not escape)
-            if char == '\n' and in_string:
-                sanitized.append('\\n')
-            elif char == '\r':
-                continue
-            else:
-                sanitized.append(char)
-        return json.loads("".join(sanitized))
-    except Exception:
-        pass
+    if not result:
+        try:
+            sanitized = []
+            in_string = False
+            escape = False
+            for char in raw:
+                if char == '"' and not escape:
+                    in_string = not in_string
+                escape = (char == '\\' and not escape)
+                if char == '\n' and in_string:
+                    sanitized.append('\\n')
+                elif char == '\r':
+                    continue
+                else:
+                    sanitized.append(char)
+            result = json.loads("".join(sanitized))
+        except Exception:
+            pass
 
     # Strategia 4: chiedi a Gemini un JSON piu semplice come fallback
-    try:
-        fallback_prompt = f"""Analizza brevemente questo documento italiano e rispondi con JSON.
+    if not result:
+        try:
+            fallback_prompt = f"""Analizza brevemente questo documento italiano e rispondi con JSON.
 {text[:1000]}
-JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":null,"importo":null,"azioni":["Leggi il documento"],"urgenza":"media","genera_risposta":false}}"""
-        fallback_model = genai.GenerativeModel(
-            model_name="gemini-flash-latest",
-            generation_config=genai.GenerationConfig(
-                temperature=0,
-                max_output_tokens=512,
-                response_mime_type="application/json",
-                response_schema=DocumentAnalysis,
+JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":"null","importo":"null","azioni":["Leggi il documento"],"urgenza":"media","genera_risposta":false}}"""
+            fallback_model = genai.GenerativeModel(
+                model_name="gemini-flash-latest",
+                generation_config=genai.GenerationConfig(
+                    temperature=0,
+                    max_output_tokens=512,
+                    response_mime_type="application/json",
+                    response_schema=DocumentAnalysis,
+                )
             )
-        )
-        fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
-        if not fb_resp.candidates:
-            raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
-        fb_raw = fb_resp.text.strip()
-        if "```" in fb_raw:
-            import re
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', fb_raw, re.DOTALL)
-            if match:
-                fb_raw = match.group(1)
-        fb_raw = fb_raw.strip().replace(r"\'", "'").replace("\\'", "'")
-        return json.loads(fb_raw)
-    except Exception as final_err:
-        err_msg = str(final_err)
-        if "429" in err_msg or "quota" in err_msg.lower():
-            raise ValueError("Quota dell'intelligenza artificiale superata. Si prega di riprovare tra un minuto.")
-        raise ValueError(f"Impossibile analizzare la risposta AI. Errore finale: {final_err}")
+            fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
+            if not fb_resp.candidates:
+                raise ValueError("L'analisi del documento è stata bloccata dai filtri di sicurezza dell'AI.")
+            fb_raw = fb_resp.text.strip()
+            if "```" in fb_raw:
+                import re
+                match = re.search(r'```(?:json)?\s*({.*?})\s*```', fb_raw, re.DOTALL)
+                if match:
+                    fb_raw = match.group(1)
+            fb_raw = fb_raw.strip().replace(r"\'", "'").replace("\\'", "'")
+            result = json.loads(fb_raw)
+        except Exception as final_err:
+            err_msg = str(final_err)
+            if "429" in err_msg or "quota" in err_msg.lower():
+                raise ValueError("Quota dell'intelligenza artificiale superata. Si prega di riprovare tra un minuto.")
+            raise ValueError(f"Impossibile analizzare la risposta AI. Errore finale: {final_err}")
+
+    # Sanitizzazione valori per database (scadenza e importo nullabili in DB)
+    if result:
+        for key in ["scadenza", "importo"]:
+            val = result.get(key)
+            if val is None or (isinstance(val, str) and val.lower().strip() in ["null", "n/d", "n.d.", "none", "", "n/a"]):
+                result[key] = None
+        
+        # Assicura la presenza di tutti i campi previsti nel dizionario
+        expected_fields = {
+            "tipo_documento": "Documento",
+            "spiegazione": "Nessuna spiegazione disponibile.",
+            "scadenza": None,
+            "importo": None,
+            "azioni": [],
+            "urgenza": "bassa",
+            "genera_risposta": False
+        }
+        for field, default in expected_fields.items():
+            if field not in result:
+                result[field] = default
+
+    return result
 
 
 async def generate_response_letter(

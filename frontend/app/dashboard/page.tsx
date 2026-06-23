@@ -358,6 +358,12 @@ export default function Dashboard() {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [easyMode, setEasyMode] = useState(false);
 
+  // Normattiva Ingestion
+  const [normattivaUrl, setNormattivaUrl] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importSuccess, setImportSuccess] = useState("");
+
   // Letter
   const [generatingLetter, setGeneratingLetter] = useState(false);
   const [userSituation, setUserSituation] = useState("");
@@ -431,6 +437,39 @@ export default function Dashboard() {
     } catch (e: any) {
       setError(e.message || "Errore durante l'analisi.");
     } finally { setLoading(false); }
+  };
+
+  const handleImportLaw = async () => {
+    if (!normattivaUrl.trim()) return;
+    setImportLoading(true);
+    setImportError("");
+    setImportSuccess("");
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      
+      const res = await fetch(`${API_URL}/api/ai/knowledge/import`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token || ""}`,
+        },
+        body: JSON.stringify({ url: normattivaUrl.trim() }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Errore durante l'importazione.");
+      }
+      
+      setImportSuccess(data.message || "Legge importata con successo!");
+      setNormattivaUrl("");
+    } catch (err: any) {
+      setImportError(err.message || "Impossibile completare l'importazione.");
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   const loadDocFull = async (docId: string) => {
@@ -710,6 +749,65 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* NORMATTIVA IMPORT */}
+              <div className="glass-card" style={{ padding: "28px" }}>
+                <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 800, marginBottom: "16px" }}>
+                  Importa da Normattiva
+                </h2>
+                <p style={{ color: "var(--text-muted)", fontSize: "var(--font-xs)", marginBottom: "14px", lineHeight: 1.5 }}>
+                  Incolla un URL ufficiale di Normattiva (es. URN o link dell'atto) per inserire il testo di legge nella base di conoscenza di BuroBot.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <input
+                    type="text"
+                    placeholder="https://www.normattiva.it/uri-res/..."
+                    value={normattivaUrl}
+                    onChange={(e) => setNormattivaUrl(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-card)",
+                      color: "var(--text-main)",
+                      fontSize: "var(--font-sm)",
+                    }}
+                  />
+                  {importError && (
+                    <p style={{ color: "var(--danger)", fontSize: "var(--font-xs)", marginTop: "2px" }}>
+                      {importError}
+                    </p>
+                  )}
+                  {importSuccess && (
+                    <p style={{ color: "#4ade80", fontSize: "var(--font-xs)", marginTop: "2px" }}>
+                      {importSuccess}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleImportLaw}
+                    disabled={importLoading || !normattivaUrl.trim()}
+                    className="btn-primary"
+                    style={{
+                      padding: "10px",
+                      fontSize: "var(--font-sm)",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px"
+                    }}
+                  >
+                    {importLoading ? (
+                      <>
+                        <div className="spinner" style={{ width: 14, height: 14, borderWidth: "2px" }} />
+                        Importazione...
+                      </>
+                    ) : (
+                      "Importa Legge"
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
