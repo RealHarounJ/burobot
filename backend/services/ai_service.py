@@ -12,7 +12,7 @@ import os
 import json
 from pathlib import Path
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 class DocumentAnalysis(BaseModel):
     tipo_documento: str
@@ -20,7 +20,7 @@ class DocumentAnalysis(BaseModel):
     scadenza: str
     importo: str
     azioni: List[str]
-    urgenza: str
+    urgenza: Literal["bassa", "media", "alta"]
     genera_risposta: bool
 
 
@@ -48,6 +48,7 @@ Regole:
 - Non utilizzare mai emoji, simboli di spunta o icone figurative nelle spiegazioni o nelle risposte.
 - Sii estremamente specifico su date e importi finanziari.
 - Non inventare informazioni non presenti nel documento o nel contesto normativo.
+- Se il documento è in gran parte vuoto, un modulo in bianco o un modello non compilato (con spazi sottolineati come "___"), spiega esplicitamente all'utente che si tratta di una bozza o di un modello di contratto da compilare, indicando i principali dati necessari da inserire. Evita spiegazioni generiche o frasi vuote.
 - Se un dato non è rilevabile dal documento, impostalo a null.
 - Rispondi sempre in lingua italiana.
 """
@@ -242,6 +243,17 @@ JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":"null","importo":"null
         for field, default in expected_fields.items():
             if field not in result:
                 result[field] = default
+
+        # Forza urgenza a un valore valido consentito ("bassa", "media", "alta")
+        urg_val = str(result.get("urgenza", "bassa")).lower()
+        if "alta" in urg_val:
+            result["urgenza"] = "alta"
+        elif "media" in urg_val:
+            result["urgenza"] = "media"
+        elif "bassa" in urg_val:
+            result["urgenza"] = "bassa"
+        else:
+            result["urgenza"] = "bassa"
 
     return result
 
