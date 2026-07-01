@@ -125,7 +125,6 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
             temperature=0.1,
             max_output_tokens=2048,
             response_mime_type="application/json",
-            response_schema=DocumentAnalysis,
         )
     )
 
@@ -203,7 +202,6 @@ JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":"null","importo":"null
                     temperature=0,
                     max_output_tokens=512,
                     response_mime_type="application/json",
-                    response_schema=DocumentAnalysis,
                 )
             )
             fb_resp = await asyncio.to_thread(fallback_model.generate_content, fallback_prompt)
