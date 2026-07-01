@@ -470,7 +470,7 @@ export default function Dashboard() {
     try {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const API_URL = "https://burobot-production-4c5a.up.railway.app";
       
       const res = await fetch(`${API_URL}/api/ai/knowledge/import`, {
         method: "POST",
@@ -603,7 +603,7 @@ export default function Dashboard() {
     try {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const API_URL = "https://burobot-production-4c5a.up.railway.app";
       const res = await fetch(`${API_URL}/api/documents/${docId}`, {
         headers: { Authorization: `Bearer ${session?.access_token || ""}` }
       });

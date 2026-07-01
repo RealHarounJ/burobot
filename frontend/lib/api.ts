@@ -1,6 +1,6 @@
 import { createClient } from "./supabase";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = "https://burobot-production-4c5a.up.railway.app";
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   const supabase = createClient();
