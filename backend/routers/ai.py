@@ -5,16 +5,23 @@ Endpoint per chat libera e domande burocratiche dirette.
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from typing import Optional
 from dependencies import get_current_user
-from services.ai_service import chat_with_ai, reset_rag_index
+from services.ai_service import chat_with_ai, chat_with_history, reset_rag_index
 from services.normattiva_service import scrape_normattiva_law
 
 router = APIRouter()
 
 
+class ChatMessage(BaseModel):
+    role: str  # "user" o "model"
+    text: str
+
+
 class ChatRequest(BaseModel):
     message: str
     context: str = ""
+    history: Optional[list[ChatMessage]] = None
 
 
 class LawImportRequest(BaseModel):
@@ -24,8 +31,7 @@ class LawImportRequest(BaseModel):
 @router.post("/chat")
 async def chat(request: ChatRequest, user=Depends(get_current_user)):
     """
-    Chat libera con BuroBot per domande burocratiche generali.
-    Non richiede upload di documenti.
+    Chat interattiva e multi-turno con BuroBot focalizzata sul contesto del documento.
     """
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Messaggio vuoto")
@@ -34,7 +40,8 @@ async def chat(request: ChatRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Messaggio troppo lungo (max 2000 caratteri)")
 
     try:
-        response = await chat_with_ai(request.message, request.context)
+        history_list = [h.model_dump() for h in request.history] if request.history else None
+        response = await chat_with_history(request.message, request.context, history_list)
         return {"response": response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore AI: {str(e)}")

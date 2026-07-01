@@ -10,7 +10,7 @@ import os
 from supabase import create_client, Client
 from dependencies import get_current_user
 from services.ocr_service import extract_text
-from services.ai_service import analyze_document, generate_response_letter
+from services.ai_service import analyze_document, generate_response_letter, match_bonuses_with_ai
 
 router = APIRouter()
 
@@ -197,6 +197,116 @@ async def get_usage(user=Depends(get_current_user)):
         "used_this_month": used,
         "limit": limit,
         "remaining": max(0, limit - used) if limit else None
+    }
+
+
+class MatchBonusesRequest(BaseModel):
+    document_id: str
+
+
+class SimulatePagoPARequest(BaseModel):
+    document_id: str
+
+
+class SendPECRequest(BaseModel):
+    document_id: str
+    recipient_email: str
+    sender_name: str
+    letter_text: str
+
+
+@router.post("/match-bonuses")
+async def match_bonuses_endpoint(
+    request: MatchBonusesRequest,
+    user=Depends(get_current_user)
+):
+    """Analizza il testo del documento ISEE e restituisce l'elenco dei bonus compatibili."""
+    supabase = get_supabase()
+    doc = supabase.table("documents") \
+        .select("*").eq("id", request.document_id).eq("user_id", user.id) \
+        .single().execute()
+
+    if not doc.data:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+
+    text = doc.data.get("original_text", "")
+    bonuses = await match_bonuses_with_ai(text)
+    
+    # Aggiorna l'analisi salvata per includere i bonus
+    analysis = doc.data.get("analysis", {})
+    analysis["bonuses"] = bonuses
+    
+    supabase.table("documents") \
+        .update({"analysis": analysis}) \
+        .eq("id", request.document_id) \
+        .execute()
+
+    return {"success": True, "bonuses": bonuses}
+
+
+@router.post("/simulate-pagopa")
+async def simulate_pagopa_endpoint(
+    request: SimulatePagoPARequest,
+    user=Depends(get_current_user)
+):
+    """Simula il pagamento PagoPA/F24 e aggiorna lo stato dell'analisi."""
+    supabase = get_supabase()
+    doc = supabase.table("documents") \
+        .select("*").eq("id", request.document_id).eq("user_id", user.id) \
+        .single().execute()
+
+    if not doc.data:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+
+    analysis = doc.data.get("analysis", {})
+    analysis["pagato"] = True
+    analysis["pagato_at"] = "oggi"
+    
+    supabase.table("documents") \
+        .update({"analysis": analysis}) \
+        .eq("id", request.document_id) \
+        .execute()
+
+    return {
+        "success": True, 
+        "receipt_id": "REC-PA-983172635", 
+        "message": "Pagamento PagoPA simulato con successo"
+    }
+
+
+@router.post("/send-pec")
+async def send_pec_endpoint(
+    request: SendPECRequest,
+    user=Depends(get_current_user)
+):
+    """Simula l'invio legale via PEC della lettera generata e aggiorna lo stato."""
+    supabase = get_supabase()
+    doc = supabase.table("documents") \
+        .select("*").eq("id", request.document_id).eq("user_id", user.id) \
+        .single().execute()
+
+    if not doc.data:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+
+    analysis = doc.data.get("analysis", {})
+    analysis["pec_inviata"] = True
+    analysis["pec_inviata_at"] = "oggi"
+    analysis["pec_recipient"] = request.recipient_email
+    
+    supabase.table("documents") \
+        .update({"analysis": analysis}) \
+        .eq("id", request.document_id) \
+        .execute()
+
+    return {
+        "success": True, 
+        "message": "Invio PEC simulato con successo",
+        "receipt": {
+            "timestamp": "2026-06-30T22:30:00Z",
+            "message_id": "<burobot-pec-98213768@legalmail.it>",
+            "recipient": request.recipient_email,
+            "status": "accettata_e_consegnata"
+        }
     }
 
 

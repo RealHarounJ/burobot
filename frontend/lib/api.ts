@@ -74,4 +74,65 @@ export const api = {
     if (!res.ok) throw new Error("Errore nell'apertura del portale di fatturazione");
     return res.json();
   },
+
+  async chat(message: string, context: string, history: any[]) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/ai/chat`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ message, context, history }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore sconosciuto" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async matchBonuses(documentId: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/documents/match-bonuses`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ document_id: documentId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore sconosciuto" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async simulatePagoPA(documentId: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/documents/simulate-pagopa`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ document_id: documentId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore sconosciuto" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async sendPec(documentId: string, recipientEmail: string, senderName: string, letterText: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/documents/send-pec`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document_id: documentId,
+        recipient_email: recipientEmail,
+        sender_name: senderName,
+        letter_text: letterText
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore sconosciuto" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
 };

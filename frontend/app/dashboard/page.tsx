@@ -372,10 +372,33 @@ export default function Dashboard() {
   const [exportingPdf, setExportingPdf] = useState(false);
 
   // Tab (per piani superiori)
-  const [activeTab, setActiveTab] = useState<"analisi" | "contratti" | "team">("analisi");
+  const [activeTab, setActiveTab] = useState<"analisi" | "contratti" | "team" | "welfare">("analisi");
   const [activeDocTab, setActiveDocTab] = useState("cartelle");
 
+  // AI Copilot States
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "model"; text: string }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+
+  // PagoPA States
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  // PEC States
+  const [showPecModal, setShowPecModal] = useState(false);
+  const [pecLoading, setPecLoading] = useState(false);
+  const [pecRecipient, setPecRecipient] = useState("");
+  const [pecSenderName, setPecSenderName] = useState("");
+  const [pecSuccessReceipt, setPecSuccessReceipt] = useState<any>(null);
+
+  // Welfare Matchmaker States
+  const [welfareFile, setWelfareFile] = useState<File | null>(null);
+  const [welfareLoading, setWelfareLoading] = useState(false);
+  const [matchedBonuses, setMatchedBonuses] = useState<any[]>([]);
+
   const fileRef = useRef<HTMLInputElement>(null);
+  const welfareFileRef = useRef<HTMLInputElement>(null);
   const plan = usage?.plan || "free";
 
   // Easy mode persistenza
@@ -469,6 +492,109 @@ export default function Dashboard() {
       setImportError(err.message || "Impossibile completare l'importazione.");
     } finally {
       setImportLoading(false);
+    }
+  };
+
+  // AI Copilot Chat Handler
+  const handleSendChatMessage = async () => {
+    if (!chatInput.trim() || !selectedDoc) return;
+    const userMsg = { role: "user" as const, text: chatInput };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const contextText = selectedDoc.original_text || selectedDoc.analysis?.spiegazione || "";
+      const historyPayload = chatMessages.map(m => ({ role: m.role, text: m.text }));
+      const res = await api.chat(chatInput, contextText, historyPayload);
+      const botMsg = { role: "model" as const, text: res.response };
+      setChatMessages(prev => [...prev, botMsg]);
+    } catch (e: any) {
+      setChatMessages(prev => [...prev, { role: "model" as const, text: `Errore: ${e.message || "impossibile ottenere risposta"}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // PagoPA Payment Handler
+  const handlePayPagoPA = async () => {
+    if (!selectedDoc) return;
+    setPaymentLoading(true);
+    try {
+      const res = await api.simulatePagoPA(selectedDoc.id);
+      if (res.success) {
+        setSelectedDoc(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            analysis: {
+              ...prev.analysis,
+              pagato: true,
+              pagato_at: "oggi"
+            }
+          };
+        });
+        alert("Pagamento PagoPA simulato correttamente! Ricevuta registrata.");
+        setShowPayModal(false);
+        loadData();
+      }
+    } catch (e: any) {
+      alert(`Errore nel pagamento: ${e.message || "riprova"}`);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // PEC Sending Handler
+  const handleSendPEC = async () => {
+    if (!selectedDoc || !pecRecipient.trim() || !pecSenderName.trim()) return;
+    setPecLoading(true);
+    setPecSuccessReceipt(null);
+    try {
+      const letterText = generatedLetter || selectedDoc.analysis?.spiegazione || "";
+      const res = await api.sendPec(selectedDoc.id, pecRecipient, pecSenderName, letterText);
+      if (res.success) {
+        setPecSuccessReceipt(res.receipt);
+        setSelectedDoc(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            analysis: {
+              ...prev.analysis,
+              pec_inviata: true,
+              pec_inviata_at: "oggi",
+              pec_recipient: pecRecipient
+            }
+          };
+        });
+        loadData();
+      }
+    } catch (e: any) {
+      alert(`Errore nell'invio PEC: ${e.message || "riprova"}`);
+    } finally {
+      setPecLoading(false);
+    }
+  };
+
+  // Welfare Matchmaker Upload Handler
+  const handleWelfareUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setWelfareFile(f);
+    setWelfareLoading(true);
+    setMatchedBonuses([]);
+    try {
+      const data = await api.analyzeDocument(f);
+      if (data.success && data.document_id) {
+        const bonusRes = await api.matchBonuses(data.document_id);
+        if (bonusRes.success) {
+          setMatchedBonuses(bonusRes.bonuses);
+        }
+        loadData();
+      }
+    } catch (err: any) {
+      alert(`Errore durante l'elaborazione ISEE: ${err.message || "riprova"}`);
+    } finally {
+      setWelfareLoading(false);
     }
   };
 
@@ -568,14 +694,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── TABS (solo piani PMI e Studio) ── */}
-      {hasPlan(plan, "pmi") && (
-        <div style={{ background: "rgba(10,10,15,0.6)", borderBottom: "1px solid var(--border)", padding: "12px 32px", display: "flex", gap: "8px" }}>
-          <button style={tabStyle("analisi")} onClick={() => setActiveTab("analisi")}>Analisi Documenti</button>
-          <button style={tabStyle("contratti")} onClick={() => setActiveTab("contratti")}>Contratti Commerciali</button>
-          {hasPlan(plan, "pmi") && <button style={tabStyle("team")} onClick={() => setActiveTab("team")}>Gestione Team</button>}
-        </div>
-      )}
+      {/* ── TABS (Navigazione Piattaforma) ── */}
+      <div style={{ background: "rgba(10,10,15,0.6)", borderBottom: "1px solid var(--border)", padding: "12px 32px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <button style={tabStyle("analisi")} onClick={() => setActiveTab("analisi")}>Analisi Documenti</button>
+        <button style={tabStyle("welfare")} onClick={() => setActiveTab("welfare")}>Bonus & Welfare</button>
+        {hasPlan(plan, "base") && <button style={tabStyle("contratti")} onClick={() => setActiveTab("contratti")}>Contratti Commerciali</button>}
+        {hasPlan(plan, "pmi") && <button style={tabStyle("team")} onClick={() => setActiveTab("team")}>Gestione Team</button>}
+      </div>
 
       {/* ── MAIN CONTENT ── */}
       <div style={{ flex: 1, maxWidth: "1400px", width: "100%", margin: "0 auto", padding: "32px 24px" }}>
@@ -625,6 +750,140 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB: BONUS & WELFARE MATCHMAKER */}
+        {activeTab === "welfare" && (
+          <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div>
+              <span className="badge" style={{ marginBottom: "8px" }}>Welfare & Agevolazioni</span>
+              <h2 style={{ fontSize: "var(--font-2xl)", fontWeight: 800, marginTop: "6px" }}>Bonus & Welfare Matchmaker</h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)", marginTop: "6px", lineHeight: 1.6 }}>
+                Carica il tuo ISEE, 730 o CU. BuroBot leggerà i dati economici del tuo nucleo familiare e calcolerà in tempo reale a quali bonus statali o comunali hai diritto.
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "28px", alignItems: "start" }}>
+              {/* Left Column: Upload ISEE */}
+              <div className="glass-card" style={{ padding: "24px", background: "rgba(255,255,255,0.02)" }}>
+                <h3 style={{ fontSize: "var(--font-md)", fontWeight: 700, marginBottom: "12px" }}>1. Carica l'attestazione</h3>
+                
+                <div
+                  className="upload-zone"
+                  style={{ height: "160px", borderStyle: "dashed" }}
+                  onClick={() => welfareFileRef.current?.click()}
+                >
+                  <input
+                    ref={welfareFileRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    style={{ display: "none" }}
+                    onChange={handleWelfareUpload}
+                  />
+                  {welfareFile ? (
+                    <div>
+                      <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-sm)", wordBreak: "break-all" }}>{welfareFile.name}</p>
+                      <p style={{ color: "var(--text-dim)", fontSize: "var(--font-xs)", marginTop: "4px" }}>{(welfareFile.size / 1024).toFixed(0)} KB</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-sm)" }}>Scegli ISEE o 730</p>
+                      <p style={{ color: "var(--text-dim)", fontSize: "var(--font-xs)", marginTop: "4px" }}>PDF, JPG, PNG • Max 10MB</p>
+                    </div>
+                  )}
+                </div>
+
+                {welfareLoading && (
+                  <div style={{ textAlign: "center", padding: "16px 0" }}>
+                    <div className="spinner" style={{ margin: "0 auto 12px" }} />
+                    <p style={{ color: "var(--text-muted)", fontSize: "var(--font-xs)" }}>Scansione e calcolo requisiti in corso...</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Bonus Results Grid */}
+              <div style={{ gridColumn: "span 2" }}>
+                <h3 style={{ fontSize: "var(--font-md)", fontWeight: 700, marginBottom: "12px" }}>2. Agevolazioni Individuate</h3>
+                
+                {matchedBonuses.length === 0 ? (
+                  <div className="glass-card" style={{ padding: "40px 20px", textAlign: "center", borderStyle: "dashed" }}>
+                    <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>
+                      Nessun documento analizzato. Carica il tuo ISEE per scoprire i bonus compatibili.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {matchedBonuses.map((bonus, idx) => (
+                      <div
+                        key={idx}
+                        className="glass-card"
+                        style={{
+                          padding: "20px",
+                          border: `1px solid ${
+                            bonus.stato === "idoneo"
+                              ? "rgba(74,222,128,0.3)"
+                              : bonus.stato === "non idoneo"
+                              ? "rgba(239,68,68,0.2)"
+                              : "rgba(251,191,36,0.3)"
+                          }`,
+                          background: `${
+                            bonus.stato === "idoneo"
+                              ? "rgba(74,222,128,0.02)"
+                              : bonus.stato === "non idoneo"
+                              ? "rgba(239,68,68,0.01)"
+                              : "rgba(251,191,36,0.02)"
+                          }`,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
+                          <div>
+                            <h4 style={{ fontSize: "var(--font-lg)", fontWeight: 700, color: "var(--text-main)" }}>{bonus.nome}</h4>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginTop: "4px" }}>Requisiti: {bonus.requisiti}</p>
+                          </div>
+                          <span
+                            className={`urgency-${
+                              bonus.stato === "idoneo" ? "bassa" : bonus.stato === "non idoneo" ? "alta" : "media"
+                            }`}
+                            style={{
+                              background:
+                                bonus.stato === "idoneo"
+                                  ? "rgba(74,222,128,0.15)"
+                                  : bonus.stato === "non idoneo"
+                                  ? "rgba(239,68,68,0.15)"
+                                  : "rgba(251,191,36,0.15)",
+                              color:
+                                bonus.stato === "idoneo" ? "#4ade80" : bonus.stato === "non idoneo" ? "#f87171" : "#fbbf24",
+                              border: "1px solid currentColor",
+                              padding: "4px 10px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              textTransform: "uppercase"
+                            }}
+                          >
+                            {bonus.stato === "idoneo" ? "Idoneo" : bonus.stato === "non idoneo" ? "Escluso" : "Verificare"}
+                          </span>
+                        </div>
+
+                        <p style={{ color: "var(--text-dim)", fontSize: "var(--font-sm)", marginTop: "12px", lineHeight: 1.6 }}>
+                          {bonus.descrizione}
+                        </p>
+
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                          <span style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)" }}>
+                            Scadenza: <strong>{bonus.scadenza}</strong>
+                          </span>
+                          <span style={{ fontSize: "var(--font-lg)", fontWeight: 800, color: "var(--primary-light)" }}>
+                            {bonus.importo}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -823,7 +1082,8 @@ export default function Dashboard() {
                 const azioni = selectedDoc.analysis?.azioni || [];
 
                 return (
-                  <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px" }}>
+                  <div style={{ display: "flex", gap: "24px", alignItems: "start", flexWrap: "wrap", width: "100%" }}>
+                    <div className="glass-card animate-fade-up" style={{ padding: "32px", display: "flex", flexDirection: "column", gap: "24px", flex: 1, minWidth: "300px" }}>
 
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "20px" }}>
@@ -835,6 +1095,20 @@ export default function Dashboard() {
                         <span className={`urgency-${urgency}`}>
                           {uLabel.label}
                         </span>
+                        
+                        {/* Toggle AI Copilot */}
+                        <button
+                          onClick={() => setShowChat(!showChat)}
+                          className={`btn-secondary ${showChat ? "active" : ""}`}
+                          style={{
+                            padding: "8px 14px", fontSize: "var(--font-xs)",
+                            background: showChat ? "rgba(99,102,241,0.15)" : "",
+                            borderColor: showChat ? "var(--primary)" : ""
+                          }}
+                        >
+                          Copilot AI {showChat ? "ON" : "OFF"}
+                        </button>
+
                         {/* Export PDF — tutti i piani */}
                         <button
                           onClick={handleExportPDF}
@@ -863,6 +1137,37 @@ export default function Dashboard() {
                             <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Importo</p>
                             <p style={{ fontWeight: 800, color: "var(--danger)", fontSize: "var(--font-lg)" }}>{importo}</p>
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* PagoPA Sim Widget */}
+                    {importo && (
+                      <div style={{
+                        background: selectedDoc.analysis?.pagato ? "rgba(74,222,128,0.06)" : "rgba(99,102,241,0.06)",
+                        border: `1px solid ${selectedDoc.analysis?.pagato ? "rgba(74,222,128,0.3)" : "rgba(99,102,241,0.3)"}`,
+                        borderRadius: "var(--radius-md)", padding: "16px 20px",
+                        display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap"
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <div style={{ background: selectedDoc.analysis?.pagato ? "#4ade80" : "var(--primary)", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.8rem", color: "white" }}>
+                            pPA
+                          </div>
+                          <div>
+                            <p style={{ fontSize: "var(--font-sm)", fontWeight: 700, color: "var(--text-main)" }}>PagoPA / F24 Integrato</p>
+                            <p style={{ fontSize: "var(--font-xs)", color: "var(--text-dim)", marginTop: "2px" }}>
+                              {selectedDoc.analysis?.pagato ? `Pagato via PagoPA il ${selectedDoc.analysis?.pagato_at || "oggi"}` : "Saldabile direttamente online in sicurezza"}
+                            </p>
+                          </div>
+                        </div>
+                        {selectedDoc.analysis?.pagato ? (
+                          <span style={{ color: "#4ade80", fontWeight: 700, fontSize: "var(--font-sm)", display: "flex", alignItems: "center", gap: "6px" }}>
+                            ✓ Pagato
+                          </span>
+                        ) : (
+                          <button onClick={() => setShowPayModal(true)} className="btn-primary" style={{ padding: "8px 16px", fontSize: "var(--font-xs)" }}>
+                            Paga ora con PagoPA
+                          </button>
                         )}
                       </div>
                     )}
@@ -911,6 +1216,19 @@ export default function Dashboard() {
                             <button onClick={() => setGeneratedLetter("")} className="btn-secondary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
                               Rigenera
                             </button>
+                            {selectedDoc.analysis?.pec_inviata ? (
+                              <span style={{ border: "1px solid rgba(74,222,128,0.4)", background: "rgba(74,222,128,0.1)", color: "#4ade80", borderRadius: "var(--radius-md)", padding: "8px 14px", fontSize: "var(--font-xs)", fontWeight: 600 }}>
+                                ✓ Spedito via PEC
+                              </span>
+                            ) : (
+                              <button onClick={() => {
+                                setPecRecipient(selectedDoc.analysis?.pec_recipient || "ente@pec.amministrazione.it");
+                                setPecSenderName(user?.email || "utente@pec.it");
+                                setShowPecModal(true);
+                              }} className="btn-primary" style={{ fontSize: "var(--font-xs)", padding: "8px 14px" }}>
+                                Spedisci via PEC
+                              </button>
+                            )}
                           </div>
                           <textarea
                             readOnly value={generatedLetter}
@@ -977,8 +1295,9 @@ export default function Dashboard() {
                   )}
 
                   </div>
-                );
-              })() : (
+                </div>
+              );
+            })() : (
                 <div className="glass-card animate-fade-up" style={{ display: "flex", flexDirection: "column", padding: "32px", gap: "24px", minHeight: "500px" }}>
                   <div style={{ textAlign: "center", marginBottom: "8px" }}>
                     <h2 style={{ fontSize: "var(--font-xl)", fontWeight: 900, marginBottom: "8px", color: "var(--text-main)" }}>
@@ -1101,10 +1420,143 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-
           </div>
         )}
       </div>
+
+      {/* MODAL: PAGOPA PAYMENT SIMULATION */}
+      {showPayModal && selectedDoc && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+          background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
+        }}>
+          <div className="glass-card animate-fade-up" style={{ padding: "32px", maxWidth: "480px", width: "100%", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(20,20,30,0.95)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "16px", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "var(--font-xl)", fontWeight: 800, color: "var(--text-main)" }}>PagoPA — Checkout</h3>
+              <button onClick={() => setShowPayModal(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.2rem" }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: "var(--radius-md)", padding: "16px", border: "1px solid var(--border)" }}>
+                <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginBottom: "4px" }}>Ente Creditore</p>
+                <p style={{ fontWeight: 700, color: "var(--text-main)", fontSize: "var(--font-sm)" }}>{selectedDoc.document_type || "Amministrazione Pubblica"}</p>
+                
+                <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginTop: "12px", marginBottom: "4px" }}>Codice Avviso (IUV)</p>
+                <p style={{ fontFamily: "monospace", color: "var(--text-main)", fontSize: "var(--font-sm)" }}>302847192837482910</p>
+
+                <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginTop: "12px", marginBottom: "4px" }}>Importo da Pagare</p>
+                <p style={{ fontSize: "var(--font-xl)", fontWeight: 800, color: "var(--danger)" }}>{selectedDoc.analysis?.importo}</p>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>Metodo di Pagamento</label>
+                <select className="input-field">
+                  <option value="card">Carta di Credito / Debito (Simulata)</option>
+                  <option value="bancomat">Bancomat Pay (Simulata)</option>
+                  <option value="account">Addebito Diretto SEPA (Simulato)</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                <button onClick={() => setShowPayModal(false)} className="btn-secondary" style={{ flex: 1, padding: "12px" }}>
+                  Annulla
+                </button>
+                <button onClick={handlePayPagoPA} disabled={paymentLoading} className="btn-primary" style={{ flex: 1, padding: "12px", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px" }}>
+                  {paymentLoading ? (
+                    <>
+                      <div className="spinner" style={{ width: 14, height: 14, borderWidth: "2px" }} />
+                      Elaborazione...
+                    </>
+                  ) : (
+                    "Conferma Pagamento"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PEC DIGITAL TRANSMISSION */}
+      {showPecModal && selectedDoc && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+          background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
+        }}>
+          <div className="glass-card animate-fade-up" style={{ padding: "32px", maxWidth: "520px", width: "100%", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(20,20,30,0.95)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "16px", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "var(--font-xl)", fontWeight: 800, color: "var(--text-main)" }}>Invio PEC / Raccomandata</h3>
+              <button onClick={() => { setShowPecModal(false); setPecSuccessReceipt(null); }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.2rem" }}>✕</button>
+            </div>
+
+            {pecSuccessReceipt ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "center" }}>
+                <div style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: "var(--radius-md)", padding: "20px" }}>
+                  <p style={{ color: "#4ade80", fontWeight: 800, fontSize: "var(--font-lg)", marginBottom: "8px" }}>✓ PEC Spedita con Successo!</p>
+                  <p style={{ fontSize: "var(--font-sm)", color: "var(--text-main)" }}>L'atto è stato inviato legalmente e la PA ha rilasciato la ricevuta di avvenuta consegna.</p>
+                </div>
+
+                <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: "var(--radius-md)", padding: "16px", border: "1px solid var(--border)", textLeft: "left", fontSize: "var(--font-xs)", fontFamily: "monospace", textAlign: "left" }}>
+                  <p style={{ marginBottom: "6px" }}><strong>ID Messaggio:</strong> {pecSuccessReceipt.message_id}</p>
+                  <p style={{ marginBottom: "6px" }}><strong>Destinatario:</strong> {pecSuccessReceipt.recipient}</p>
+                  <p style={{ marginBottom: "6px" }}><strong>Data/Ora Invio:</strong> {new Date(pecSuccessReceipt.timestamp).toLocaleString("it-IT")}</p>
+                  <p><strong>Stato Legalmail:</strong> ACCETTATA E CONSEGNATA (Valore di Raccomandata A/R)</p>
+                </div>
+
+                <button onClick={() => { setShowPecModal(false); setPecSuccessReceipt(null); }} className="btn-primary" style={{ padding: "12px", marginTop: "12px" }}>
+                  Chiudi
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  L'invio tramite PEC (Posta Elettronica Certificata) ha lo stesso valore legale di una raccomandata con ricevuta di ritorno. BuroBot simulerà l'invio del documento e genererà la ricevuta di consegna ufficiale.
+                </p>
+
+                <div>
+                  <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>Mittente (Tua PEC)</label>
+                  <input
+                    type="email"
+                    value={pecSenderName}
+                    onChange={(e) => setPecSenderName(e.target.value)}
+                    placeholder="tua-pec@legalmail.it"
+                    className="input-field"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "8px" }}>Destinatario (PEC Ente Pubblico)</label>
+                  <input
+                    type="email"
+                    value={pecRecipient}
+                    onChange={(e) => setPecRecipient(e.target.value)}
+                    placeholder="protocollo@pec.ente.it"
+                    className="input-field"
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                  <button onClick={() => { setShowPecModal(false); setPecSuccessReceipt(null); }} className="btn-secondary" style={{ flex: 1, padding: "12px" }}>
+                    Annulla
+                  </button>
+                  <button onClick={handleSendPEC} disabled={pecLoading || !pecRecipient.trim() || !pecSenderName.trim()} className="btn-primary" style={{ flex: 1, padding: "12px", display: "flex", justifyContent: "center", alignItems: "center", gap: "6px" }}>
+                    {pecLoading ? (
+                      <>
+                        <div className="spinner" style={{ width: 14, height: 14, borderWidth: "2px" }} />
+                        Invio in corso...
+                      </>
+                    ) : (
+                      "Spedisci via PEC"
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

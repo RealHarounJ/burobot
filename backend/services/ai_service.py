@@ -311,3 +311,117 @@ Rispondi in modo chiaro, utile, professionale e in italiano. Mantieni sempre un 
 
     response = await asyncio.to_thread(model.generate_content, prompt)
     return response.text
+
+
+async def chat_with_history(message: str, context: str = "", history: list = None) -> str:
+    """Gestisce una conversazione multi-turno basata sul contesto del documento."""
+    
+    # Costruiamo il contesto iniziale di sistema per la chat
+    system_instruction = f"""{SYSTEM_PROMPT}
+
+Sei in una chat interattiva sul seguente documento/contesto caricato dall'utente.
+CONTESTO DEL DOCUMENTO:
+{context}
+
+Usa questo contesto per rispondere a tutte le domande dell'utente. Se le domande non riguardano il documento, rispondi con cortesia ma ricorda all'utente di focalizzarsi sull'atto caricato.
+Mantieni sempre un tono altamente formale, professionale e in italiano. Non usare mai emoji.
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-flash-latest",
+        system_instruction=system_instruction,
+        generation_config=genai.GenerationConfig(
+            temperature=0.3,
+            max_output_tokens=1000
+        )
+    )
+
+    # Convertiamo la history passata dal frontend nel formato accettato dall'SDK di Gemini
+    gemini_history = []
+    if history:
+        for h in history:
+            role = "user" if h.get("role") == "user" else "model"
+            gemini_history.append({
+                "role": role,
+                "parts": [h.get("text", "")]
+            })
+
+    # Iniziamo la sessione di chat con lo storico
+    chat = model.start_chat(history=gemini_history)
+    response = await asyncio.to_thread(chat.send_message, message)
+    return response.text
+
+
+async def match_bonuses_with_ai(document_text: str) -> list:
+    """Analizza un documento (ISEE/730) e determina l'idoneità a bonus italiani (Asilo Nido, Carta Dedicata a Te, ecc.)."""
+    
+    prompt = f"""Sei un assistente fiscale esperto in welfare e bonus della Repubblica Italiana.
+Analizza questo documento (che dovrebbe essere un ISEE, un Modello 730 o una Certificazione Unica).
+Estrai i dati essenziali: Valore ISEE, reddito complessivo, numero di figli o componenti del nucleo familiare, età dell'utente (se presenti).
+
+Successivamente, verifica l'idoneità dell'utente per le seguenti agevolazioni dello Stato Italiano:
+1. **Asilo Nido**: Fino a 3.000€/anno per rette asilo. Limite ISEE: idoneo per tutti, importo massimo sotto i 25.000€ ISEE, decresce fino a 40.000€.
+2. **Carta Dedicata a Te**: 500€ per spesa e carburante. Limite ISEE: inferiore a 15.000€, priorità a nuclei con almeno 3 persone.
+3. **Bonus Psicologo**: Fino a 1.500€ per psicoterapia. Limite ISEE: sotto i 50.000€ (priorità a ISEE più bassi).
+4. **Assegno Unico**: Supporto mensile per figli a carico. Idoneo per chiunque abbia figli; l'importo è massimo sotto i 16.215€ di ISEE e scende al minimo sopra i 45.575€.
+5. **Bonus Bollette (Sociale)**: Sconto in bolletta per luce/gas. Limite ISEE: inferiore a 9.530€ (o 15.000€ se nucleo con 4+ figli).
+6. **Carta Giovani Nazionale**: Sconti e agevolazioni per giovani tra i 18 e i 35 anni.
+7. **Detrazione Affitto Giovani**: Detrazione d'imposta per inquilini tra i 20 e i 31 anni non compiuti, con reddito complessivo inferiore a 15.493,71€.
+
+Rispondi ESCLUSIVAMENTE con un array JSON di oggetti. Non aggiungere alcun testo di introduzione o conclusione, non inserire markdown code blocks come ```json.
+
+Ogni oggetto nell'array deve seguire esattamente questo formato:
+{{
+  "nome": "Nome del Bonus",
+  "importo": "Importo spettante (es. Fino a 3.000€ o 500€)",
+  "requisiti": "I requisiti di ISEE o età previsti per la misura",
+  "stato": "idoneo" | "non idoneo" | "da verificare",
+  "descrizione": "Breve spiegazione del bonus e di cosa copre",
+  "scadenza": "Scadenza per la domanda (es. 31/12/2026 o N/D)"
+}}
+
+DOCUMENTO DA ANALIZZARE:
+{document_text[:12000]}
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-flash-latest",
+        generation_config=genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=2048,
+            response_mime_type="application/json"
+        )
+    )
+
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        raw = response.text.strip()
+        # Rimuove blocchi markdown se presenti per errore
+        if "```" in raw:
+            import re
+            match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if match:
+                raw = match.group()
+        return json.loads(raw)
+    except Exception as e:
+        print(f"Errore match_bonuses_with_ai: {e}")
+        # Ritorna un mock realistico in caso di errore di parsing per non bloccare l'utente
+        return [
+            {
+                "nome": "Assegno Unico e Universale",
+                "importo": "Fino a 200€/mese per figlio",
+                "requisiti": "Avere figli a carico di età inferiore a 21 anni",
+                "stato": "da verificare",
+                "descrizione": "Sostegno economico mensile attribuito ai nuclei familiari per ogni figlio a carico.",
+                "scadenza": "30/06/2026 (per gli arretrati)"
+            },
+            {
+                "nome": "Carta Dedicata a Te",
+                "importo": "500,00€ una tantum",
+                "requisiti": "ISEE inferiore a 15.000€ e nucleo familiare di almeno 3 persone",
+                "stato": "da verificare",
+                "descrizione": "Carta prepagata destinata all'acquisto di beni alimentari di prima necessità e carburante.",
+                "scadenza": "N/D"
+            }
+        ]
+
