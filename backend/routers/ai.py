@@ -82,4 +82,4 @@ async def import_law(request: LawImportRequest, user=Depends(get_current_user)):
 @router.get("/status")
 async def ai_status():
     """Health check del servizio AI."""
-    return {"status": "ok", "model": "gemini-1.5-flash-8b", "rag": "active"}
+    return {"status": "ok", "model": "gemini-2.0-flash", "rag": "active"}
