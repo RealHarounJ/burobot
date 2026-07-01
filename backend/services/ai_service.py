@@ -120,7 +120,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
     prompt = _build_analyze_prompt(text, rag_context)
 
     model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
+        model_name="gemini-1.5-flash-8b",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=2048,
@@ -197,7 +197,7 @@ async def analyze_document(text: str, document_type: str = "generico") -> dict:
 {text[:1000]}
 JSON: {{"tipo_documento":"?","spiegazione":"?","scadenza":"null","importo":"null","azioni":["Leggi il documento"],"urgenza":"media","genera_risposta":false}}"""
             fallback_model = genai.GenerativeModel(
-                model_name="gemini-flash-latest",
+                model_name="gemini-1.5-flash-8b",
                 generation_config=genai.GenerationConfig(
                     temperature=0,
                     max_output_tokens=512,
@@ -282,7 +282,7 @@ La lettera deve essere:
 Scrivi solo la lettera, senza commenti aggiuntivi."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
+        model_name="gemini-1.5-flash-8b",
         generation_config=genai.GenerationConfig(temperature=0.2, max_output_tokens=2000)
     )
 
@@ -303,7 +303,7 @@ L'utente ti pone questa domanda sulla burocrazia italiana:
 Rispondi in modo chiaro, utile, professionale e in italiano. Mantieni sempre un tono formale ed evita categoricamente l'uso di emoji."""
 
     model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
+        model_name="gemini-1.5-flash-8b",
         generation_config=genai.GenerationConfig(temperature=0.3, max_output_tokens=1000)
     )
 
@@ -326,7 +326,7 @@ Mantieni sempre un tono altamente formale, professionale e in italiano. Non usar
 """
 
     model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
+        model_name="gemini-1.5-flash-8b",
         system_instruction=system_instruction,
         generation_config=genai.GenerationConfig(
             temperature=0.3,
@@ -383,7 +383,7 @@ DOCUMENTO DA ANALIZZARE:
 """
 
     model = genai.GenerativeModel(
-        model_name="gemini-flash-latest",
+        model_name="gemini-1.5-flash-8b",
         generation_config=genai.GenerationConfig(
             temperature=0.1,
             max_output_tokens=2048,
