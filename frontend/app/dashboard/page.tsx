@@ -1321,7 +1321,7 @@ export default function Dashboard() {
                             <div key={i} style={{
                               alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
                               background: msg.role === "user" ? "var(--primary)" : "var(--bg-card-hover)",
-                              color: "white",
+                              color: msg.role === "user" ? "#ffffff" : "var(--text-main)",
                               padding: "10px 14px",
                               borderRadius: "var(--radius-md)",
                               borderTopRightRadius: msg.role === "user" ? "0" : "var(--radius-md)",
