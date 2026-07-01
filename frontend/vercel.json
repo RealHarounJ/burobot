@@ -4,6 +4,6 @@
   "outputDirectory": ".next",
   "installCommand": "npm install",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://burobot-api.railway.app"
+    "NEXT_PUBLIC_API_URL": "https://burobot-production-4c5a.up.railway.app"
   }
 }
