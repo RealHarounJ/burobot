@@ -1295,6 +1295,73 @@ export default function Dashboard() {
                   )}
 
                   </div>
+
+                  {/* AI COPILOT CHAT SIDEBAR */}
+                  {showChat && (
+                    <div className="glass-card animate-fade-up" style={{
+                      width: "360px", height: "700px", display: "flex", flexDirection: "column", padding: "20px",
+                      position: "sticky", top: "100px", flexShrink: 0, background: "rgba(10,10,20,0.85)"
+                    }}>
+                      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "12px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <h3 style={{ fontSize: "var(--font-md)", fontWeight: 700, color: "var(--text-main)" }}>Copilot AI</h3>
+                          <p style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", marginTop: "2px" }}>Chiedi spiegazioni o modifiche all'atto</p>
+                        </div>
+                        <button onClick={() => setShowChat(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.1rem" }}>✕</button>
+                      </div>
+
+                      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px", paddingRight: "4px", marginBottom: "12px" }}>
+                        {chatMessages.length === 0 ? (
+                          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-dim)", fontSize: "var(--font-xs)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <p>Sono il tuo assistente burocratico dedicato.</p>
+                            <p>Chiedimi pure: <i>"Ci sono termini di ricorso?"</i> o <i>"Rendi la lettera più aggressiva"</i>.</p>
+                          </div>
+                        ) : (
+                          chatMessages.map((msg, i) => (
+                            <div key={i} style={{
+                              alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                              background: msg.role === "user" ? "var(--primary)" : "var(--bg-card-hover)",
+                              color: "white",
+                              padding: "10px 14px",
+                              borderRadius: "var(--radius-md)",
+                              borderTopRightRadius: msg.role === "user" ? "0" : "var(--radius-md)",
+                              borderTopLeftRadius: msg.role === "model" ? "0" : "var(--radius-md)",
+                              maxWidth: "85%",
+                              fontSize: "var(--font-sm)",
+                              lineHeight: 1.5,
+                              border: msg.role === "model" ? "1px solid var(--border)" : "none"
+                            }}>
+                              {msg.text}
+                            </div>
+                          ))
+                        )}
+                        {chatLoading && (
+                          <div style={{ alignSelf: "flex-start", background: "var(--bg-card-hover)", padding: "10px 14px", borderRadius: "var(--radius-md)", borderTopLeftRadius: 0, border: "1px solid var(--border)" }}>
+                            <div className="spinner" style={{ width: 14, height: 14, borderWidth: "2px" }} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          type="text"
+                          placeholder="Scrivi qui..."
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleSendChatMessage()}
+                          style={{
+                            flex: 1, padding: "10px 12px", borderRadius: "var(--radius-md)",
+                            border: "1px solid var(--border)", background: "var(--bg-card)",
+                            color: "var(--text-main)", fontSize: "var(--font-sm)"
+                          }}
+                        />
+                        <button onClick={handleSendChatMessage} className="btn-primary" style={{ padding: "10px 14px" }}>
+                          ➤
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               );
             })() : (
