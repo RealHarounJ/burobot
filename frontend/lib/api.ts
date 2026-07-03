@@ -135,4 +135,49 @@ export const api = {
     }
     return res.json();
   },
+
+  async getTeamMembers() {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/billing/team/members`, { headers });
+    if (!res.ok) throw new Error("Errore nel recupero dei membri del team");
+    return res.json();
+  },
+
+  async inviteMember(email: string, role: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/billing/team/invite`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ email, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore durante l'invito" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async removeMember(email: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/billing/team/members/${encodeURIComponent(email)}`, {
+      method: "DELETE",
+      headers,
+    });
+    if (!res.ok) throw new Error("Errore durante la rimozione del collaboratore");
+    return res.json();
+  },
+
+  async acceptInvite(inviteId: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/billing/team/accept-invite`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ invite_id: inviteId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Impossibile accettare l'invito" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
 };

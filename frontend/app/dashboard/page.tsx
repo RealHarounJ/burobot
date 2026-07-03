@@ -403,18 +403,14 @@ export default function Dashboard() {
   const [inviteRole, setInviteRole] = useState("collaboratore");
   const [collaborators, setCollaborators] = useState<any[]>([]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("burobot_collaborators");
-    if (saved) {
-      setCollaborators(JSON.parse(saved));
-    } else {
-      const initial = [
-        { name: "Avv. Marco Bianchi", email: "marco.bianchi@studio.it", role: "collaboratore", status: "attivo" }
-      ];
-      setCollaborators(initial);
-      localStorage.setItem("burobot_collaborators", JSON.stringify(initial));
+  const loadTeam = async () => {
+    try {
+      const teamData = await api.getTeamMembers();
+      setCollaborators(teamData.members || []);
+    } catch (err) {
+      console.error("Errore nel caricamento del team:", err);
     }
-  }, []);
+  };
 
   const fileRef = useRef<HTMLInputElement>(null);
   const welfareFileRef = useRef<HTMLInputElement>(null);
@@ -452,6 +448,9 @@ export default function Dashboard() {
       const [h, u] = await Promise.all([api.getHistory(), api.getUsage()]);
       setHistory(h.documents || []);
       setUsage(u);
+      if (u.plan && u.plan !== "free") {
+        await loadTeam();
+      }
     } catch { /* silent */ }
   };
 
@@ -802,10 +801,13 @@ export default function Dashboard() {
                         </td>
                         <td style={{ padding: "12px" }}>
                           <button 
-                            onClick={() => {
-                              const updated = collaborators.filter((_, i) => i !== idx);
-                              setCollaborators(updated);
-                              localStorage.setItem("burobot_collaborators", JSON.stringify(updated));
+                            onClick={async () => {
+                              try {
+                                await api.removeMember(c.email);
+                                loadTeam();
+                              } catch (err: any) {
+                                setError("Errore nella rimozione: " + err.message);
+                              }
                             }}
                             style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "var(--font-xs)", fontWeight: 600 }}
                           >
@@ -1760,17 +1762,14 @@ export default function Dashboard() {
                   Annulla
                 </button>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (!inviteName.trim() || !inviteEmail.trim()) return;
-                    const newCollab = {
-                      name: inviteName.trim(),
-                      email: inviteEmail.trim(),
-                      role: inviteRole,
-                      status: "in attesa"
-                    };
-                    const updated = [...collaborators, newCollab];
-                    setCollaborators(updated);
-                    localStorage.setItem("burobot_collaborators", JSON.stringify(updated));
+                    try {
+                      await api.inviteMember(inviteEmail.trim(), inviteRole);
+                      await loadTeam();
+                    } catch (err: any) {
+                      setError("Errore durante l'invio dell'invito: " + err.message);
+                    }
                     setShowInviteModal(false);
                     setInviteName("");
                     setInviteEmail("");

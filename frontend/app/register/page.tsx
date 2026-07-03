@@ -17,6 +17,14 @@ function RegisterForm() {
 
   const plan = searchParams.get("plan") || "free";
   const redirectUrl = searchParams.get("redirect") || "/dashboard";
+  const inviteId = searchParams.get("invite");
+  const inviteEmail = searchParams.get("email");
+
+  useEffect(() => {
+    if (inviteEmail) {
+      setEmail(inviteEmail);
+    }
+  }, [inviteEmail]);
 
   // Check if already logged in and warn if configuration is missing
   useEffect(() => {
@@ -74,6 +82,14 @@ function RegisterForm() {
           router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         }, 1500);
       } else {
+        if (inviteId) {
+          try {
+            const { api } = await import("@/lib/api");
+            await api.acceptInvite(inviteId);
+          } catch (inviteErr) {
+            console.error("Errore accettazione invito:", inviteErr);
+          }
+        }
         setTimeout(() => {
           if (plan !== "free") {
             // If they chose a plan, send them to pricing or directly trigger checkout
@@ -153,6 +169,7 @@ function RegisterForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nome@esempio.it"
               className="input-field"
+              disabled={!!inviteEmail}
             />
           </div>
 
