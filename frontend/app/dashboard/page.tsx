@@ -35,7 +35,7 @@ interface Usage {
 }
 
 /* ─────────── HELPERS ─────────── */
-const PLAN_RANK: Record<string, number> = { free: 0, base: 1, pmi: 2, studio: 3 };
+const PLAN_RANK: Record<string, number> = { free: 0, pro: 1, base: 1, pmi: 1, studio: 1 };
 const hasPlan = (userPlan: string, required: string) =>
   (PLAN_RANK[userPlan] ?? 0) >= (PLAN_RANK[required] ?? 0);
 
@@ -47,9 +47,10 @@ const urgencyLabel: Record<string, { label: string; color: string; bg: string }>
 
 const planBadge: Record<string, { label: string; cls: string }> = {
   free:   { label: "FREE",   cls: "badge-free"   },
-  base:   { label: "BASE",   cls: "badge-base"   },
-  pmi:    { label: "PMI",    cls: "badge-pmi"    },
-  studio: { label: "STUDIO", cls: "badge-studio" },
+  pro:    { label: "PRO",    cls: "badge-studio" },
+  base:   { label: "PRO",    cls: "badge-studio" },
+  pmi:    { label: "PRO",    cls: "badge-studio" },
+  studio: { label: "PRO",    cls: "badge-studio" },
 };
 
 /* ─────────── PDF EXPORT (client-side, jsPDF) ─────────── */
@@ -238,10 +239,8 @@ function StatCards({ usage, history }: { usage: Usage | null; history: Document[
         <div className="stat-label">Doc. totali</div>
       </div>
       <div className="stat-card">
-        <div className="stat-value" style={{ color: plan === "free" ? "#fbbf24" : "#4ade80" }}>
-          {plan === "free" ? (usage?.remaining ?? 0) : "∞"}
-        </div>
-        <div className="stat-label">{plan === "free" ? "Rimasti mese" : "Illimitati"}</div>
+        <div className="stat-value" style={{ color: "#4ade80" }}>∞</div>
+        <div className="stat-label">Limite Analisi</div>
       </div>
     </div>
   );
@@ -464,6 +463,10 @@ export default function Dashboard() {
 
   const handleImportLaw = async () => {
     if (!normattivaUrl.trim()) return;
+    if (!hasPlan(plan, "pro")) {
+      setImportError("L'importazione di leggi da Normattiva è una funzione riservata agli utenti BuroBot Pro. Vai alla pagina Piani per effettuare l'upgrade.");
+      return;
+    }
     setImportLoading(true);
     setImportError("");
     setImportSuccess("");
@@ -620,6 +623,10 @@ export default function Dashboard() {
 
   const handleGenerateLetter = async () => {
     if (!selectedDoc) return;
+    if (!hasPlan(plan, "pro")) {
+      setError("La generazione di ricorsi e lettere formali è una funzione riservata agli utenti BuroBot Pro. Vai alla pagina Piani per effettuare l'upgrade.");
+      return;
+    }
     if (!userSituation.trim()) { setError("Spiega la tua situazione per generare la lettera."); return; }
     setGeneratingLetter(true); setError("");
     try {
@@ -632,6 +639,10 @@ export default function Dashboard() {
 
   const handleExportPDF = async () => {
     if (!selectedDoc || !user) return;
+    if (!hasPlan(plan, "pro")) {
+      setError("L'esportazione del PDF professionale è una funzione riservata agli utenti BuroBot Pro. Vai alla pagina Piani per effettuare l'upgrade.");
+      return;
+    }
     setExportingPdf(true);
     try { await exportToPDF(selectedDoc, generatedLetter, plan, user.email); }
     catch (e: any) { setError("Errore export PDF: " + e.message); }

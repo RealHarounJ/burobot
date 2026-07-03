@@ -20,12 +20,14 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip()
 
 PRICE_MAP = {
+    "pro": os.getenv("STRIPE_PRICE_PRO") or os.getenv("STRIPE_PRICE_BASE"),
     "base": os.getenv("STRIPE_PRICE_BASE"),
     "pmi": os.getenv("STRIPE_PRICE_PMI"),
     "studio": os.getenv("STRIPE_PRICE_STUDIO"),
 }
 
 PLAN_NAMES = {
+    "pro": "BuroBot Pro",
     "base": "BuroBot Base",
     "pmi": "BuroBot PMI",
     "studio": "BuroBot Studio",

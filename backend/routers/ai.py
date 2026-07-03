@@ -52,6 +52,16 @@ async def import_law(request: LawImportRequest, user=Depends(get_current_user)):
     """
     Scarica una legge da Normattiva, la converte in markdown e la indicizza nel database RAG.
     """
+    from routers.documents import get_supabase, ADMIN_EMAILS
+    supabase = get_supabase()
+    profile = supabase.table("profiles").select("plan").eq("id", user.id).single().execute()
+    plan = profile.data.get("plan", "free") if (profile and profile.data) else "free"
+    if plan not in ("pro", "base", "pmi", "studio") and user.email.lower() not in ADMIN_EMAILS:
+        raise HTTPException(
+            status_code=402,
+            detail="L'importazione di leggi da Normattiva è riservata agli utenti BuroBot Pro. Effettua l'upgrade per sbloccarla."
+        )
+
     url_str = request.url.strip()
     if not url_str:
         raise HTTPException(status_code=400, detail="L'URL non può essere vuoto")

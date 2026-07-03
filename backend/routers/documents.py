@@ -59,21 +59,7 @@ async def check_usage_limit(user_id: str, supabase: Client, email: str = ""):
     if plan != "free":
         return True
 
-    now = datetime.now(timezone.utc)
-    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    count = supabase.table("documents") \
-        .select("id", count="exact") \
-        .eq("user_id", user_id) \
-        .gte("created_at", start_of_month.isoformat()) \
-        .execute()
-
-    used = count.count or 0
-    if used >= FREE_PLAN_LIMIT:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Limite piano gratuito raggiunto ({FREE_PLAN_LIMIT} documenti/mese). "
-                   "Vai su /pricing per sbloccare documenti illimitati."
-        )
+    # Il nuovo modello consente analisi illimitate per tutti gli utenti (Free e Pro)
     return True
 
 
@@ -135,13 +121,21 @@ async def generate_response(
 ):
     """Genera una lettera di risposta/ricorso per un documento analizzato."""
     supabase = get_supabase()
-
     doc = supabase.table("documents") \
         .select("*").eq("id", request.document_id).eq("user_id", user.id) \
         .single().execute()
 
     if not doc.data:
         raise HTTPException(status_code=404, detail="Documento non trovato")
+
+    # Controllo dell'abbonamento Pro per la generazione delle lettere
+    profile = supabase.table("profiles").select("plan").eq("id", user.id).single().execute()
+    plan = profile.data.get("plan", "free") if (profile and profile.data) else "free"
+    if plan not in ("pro", "base", "pmi", "studio") and user.email.lower() not in ADMIN_EMAILS:
+        raise HTTPException(
+            status_code=402,
+            detail="La generazione di ricorsi e lettere formali è riservata agli utenti BuroBot Pro. Vai alla pagina Piani per attivarlo."
+        )
 
     letter = await generate_response_letter(
         document_text=doc.data["original_text"],
