@@ -396,6 +396,26 @@ export default function Dashboard() {
   const [welfareLoading, setWelfareLoading] = useState(false);
   const [matchedBonuses, setMatchedBonuses] = useState<any[]>([]);
 
+  // Team Collaborator States
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("collaboratore");
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("burobot_collaborators");
+    if (saved) {
+      setCollaborators(JSON.parse(saved));
+    } else {
+      const initial = [
+        { name: "Avv. Marco Bianchi", email: "marco.bianchi@studio.it", role: "collaboratore", status: "attivo" }
+      ];
+      setCollaborators(initial);
+      localStorage.setItem("burobot_collaborators", JSON.stringify(initial));
+    }
+  }, []);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const welfareFileRef = useRef<HTMLInputElement>(null);
   const plan = usage?.plan || "free";
@@ -744,14 +764,60 @@ export default function Dashboard() {
                   {hasPlan(plan, "studio") ? "Account collaboratori illimitati" : "Fino a 5 collaboratori"}
                 </p>
               </div>
-              <button className="btn-primary" style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}>
+              <button 
+                onClick={() => setShowInviteModal(true)} 
+                className="btn-primary" 
+                style={{ fontSize: "var(--font-sm)", padding: "10px 20px" }}
+              >
                 + Invita Collaboratore
               </button>
             </div>
-            <div style={{ background: "rgba(99,102,241,0.05)", border: "1px dashed rgba(99,102,241,0.3)", borderRadius: "var(--radius-lg)", padding: "40px", textAlign: "center" }}>
-              <p style={{ fontWeight: 700, marginBottom: "8px", fontSize: "var(--font-base)" }}>Nessun collaboratore ancora</p>
-              <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>Invita i tuoi colleghi via email per condividere i documenti analizzati.</p>
-            </div>
+            {collaborators.length === 0 ? (
+              <div style={{ background: "rgba(99,102,241,0.05)", border: "1px dashed rgba(99,102,241,0.3)", borderRadius: "var(--radius-lg)", padding: "40px", textAlign: "center" }}>
+                <p style={{ fontWeight: 700, marginBottom: "8px", fontSize: "var(--font-base)" }}>Nessun collaboratore ancora</p>
+                <p style={{ color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>Invita i tuoi colleghi via email per condividere i documenti analizzati.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", marginBottom: "20px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                      <th style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-xs)", textTransform: "uppercase" }}>Nome</th>
+                      <th style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-xs)", textTransform: "uppercase" }}>Email</th>
+                      <th style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-xs)", textTransform: "uppercase" }}>Ruolo</th>
+                      <th style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-xs)", textTransform: "uppercase" }}>Stato</th>
+                      <th style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-xs)", textTransform: "uppercase" }}>Azione</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {collaborators.map((c, idx) => (
+                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <td style={{ padding: "12px", fontWeight: 600, color: "var(--text-main)", fontSize: "var(--font-sm)" }}>{c.name}</td>
+                        <td style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-sm)" }}>{c.email}</td>
+                        <td style={{ padding: "12px", color: "var(--text-muted)", fontSize: "var(--font-sm)", textTransform: "capitalize" }}>{c.role}</td>
+                        <td style={{ padding: "12px" }}>
+                          <span className={`badge ${c.status === "attivo" ? "badge-success" : "badge-warning"}`} style={{ fontSize: "10px", padding: "2px 6px" }}>
+                            {c.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px" }}>
+                          <button 
+                            onClick={() => {
+                              const updated = collaborators.filter((_, i) => i !== idx);
+                              setCollaborators(updated);
+                              localStorage.setItem("burobot_collaborators", JSON.stringify(updated));
+                            }}
+                            style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: "var(--font-xs)", fontWeight: 600 }}
+                          >
+                            Rimuovi
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {hasPlan(plan, "studio") && (
               <div style={{ marginTop: "24px", padding: "20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)" }}>
                 <p style={{ fontWeight: 700, color: "var(--primary-light)", marginBottom: "6px" }}>Studio Pro</p>
@@ -1632,6 +1698,92 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: INVITE COLLABORATOR */}
+      {showInviteModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+          background: "rgba(0, 0, 0, 0.7)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "20px"
+        }}>
+          <div className="glass-card animate-fade-up" style={{ padding: "32px", maxWidth: "450px", width: "100%", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(20,20,30,0.95)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "16px", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "var(--font-xl)", fontWeight: 800, color: "var(--text-main)" }}>Invita Collaboratore</h3>
+              <button onClick={() => { setShowInviteModal(false); setInviteName(""); setInviteEmail(""); setInviteRole("collaboratore"); }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.2rem" }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div>
+                <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "6px" }}>Nome Completo</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="es. Avv. Mario Rossi"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "6px" }}>Indirizzo Email</label>
+                <input 
+                  type="email" 
+                  className="input-field" 
+                  placeholder="es. mario.rossi@studio.it"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "var(--font-xs)", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "6px" }}>Ruolo nel Team</label>
+                <select 
+                  className="input-field"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  style={{ color: "black" }}
+                >
+                  <option value="collaboratore">Collaboratore (Sola Lettura / Modifica)</option>
+                  <option value="amministratore">Amministratore Team (Gestione completa)</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
+                <button 
+                  onClick={() => { setShowInviteModal(false); setInviteName(""); setInviteEmail(""); setInviteRole("collaboratore"); }} 
+                  className="btn-secondary" 
+                  style={{ flex: 1, padding: "12px" }}
+                >
+                  Annulla
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!inviteName.trim() || !inviteEmail.trim()) return;
+                    const newCollab = {
+                      name: inviteName.trim(),
+                      email: inviteEmail.trim(),
+                      role: inviteRole,
+                      status: "in attesa"
+                    };
+                    const updated = [...collaborators, newCollab];
+                    setCollaborators(updated);
+                    localStorage.setItem("burobot_collaborators", JSON.stringify(updated));
+                    setShowInviteModal(false);
+                    setInviteName("");
+                    setInviteEmail("");
+                    setInviteRole("collaboratore");
+                  }} 
+                  disabled={!inviteName.trim() || !inviteEmail.trim()}
+                  className="btn-primary" 
+                  style={{ flex: 1, padding: "12px" }}
+                >
+                  Invia Invito
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
