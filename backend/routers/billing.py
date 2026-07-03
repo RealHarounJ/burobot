@@ -196,7 +196,8 @@ def send_invitation_email(to_email: str, invite_id: str, inviter_name: str):
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Authorization": f"Bearer {resend_api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "BuroBot/1.0"
         },
         method="POST"
     )
