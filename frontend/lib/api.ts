@@ -180,4 +180,42 @@ export const api = {
     }
     return res.json();
   },
+
+  // ─── Lawyer endpoints ────────────────────────────────────────────────────────
+
+  async draftDocument(payload: {
+    tipo_atto: string;
+    mittente: string;
+    destinatario: string;
+    oggetto: string;
+    dettagli: string;
+    importo?: string;
+    scadenza?: string;
+  }) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/draft`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore durante la redazione" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async analyzeContract(testo_contratto: string, tipo_contratto = "generico") {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/analyze-contract`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ testo_contratto, tipo_contratto }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore durante l'analisi" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
 };

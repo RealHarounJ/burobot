@@ -11,7 +11,7 @@ import os
 
 load_dotenv()
 
-from routers import documents, ai, billing
+from routers import documents, ai, billing, lawyer
 
 app = FastAPI(
     title="BuroBot API",
@@ -38,6 +38,8 @@ app.add_middleware(
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+app.include_router(lawyer.router, prefix="/api/lawyer", tags=["Lawyer"])
+
 
 
 @app.get("/")

@@ -705,6 +705,18 @@ export default function Dashboard() {
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <EasyModeToggle enabled={easyMode} onToggle={toggleEasyMode} />
+          <Link href="/avvocato" style={{
+            color: "#a78bfa",
+            textDecoration: "none",
+            fontSize: "var(--font-sm)",
+            fontWeight: 600,
+            background: "rgba(167,139,250,0.10)",
+            border: "1px solid rgba(167,139,250,0.25)",
+            borderRadius: 6,
+            padding: "4px 10px",
+          }}>
+            ⚖️ Avvocato
+          </Link>
           <Link href="/pricing" style={{ color: "var(--text-muted)", textDecoration: "none", fontSize: "var(--font-sm)" }}>
             Piani {usage && <span className={`badge ${planBadge[plan]?.cls}`} style={{ marginLeft: "4px", fontSize: "0.7rem", padding: "2px 8px" }}>{planBadge[plan]?.label}</span>}
           </Link>
