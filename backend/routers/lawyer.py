@@ -23,7 +23,7 @@ import re
 
 def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
     """
-    Rimuove markdown, sanitizza newline e fornisce un fallback regex per chiavi specifiche in caso di virgolette non escaped.
+    Rileva e ripara errori di sintassi JSON usando json-repair e regex-fallback.
     """
     raw = raw.strip()
     # Rimuovi markdown blocks
@@ -36,13 +36,22 @@ def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
     # Sostituisci apostrofi o virgolette escape errati
     raw = raw.replace(r"\'", "'").replace("\\'", "'")
     
-    # Strategia 1: prova a caricare direttamente
+    # Strategia 1: Prova con json-repair (il metodo più robusto per aggiustare il JSON generato da LLM)
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(raw)
+        if repaired:
+            return json.loads(repaired)
+    except Exception:
+        pass
+
+    # Strategia 2: prova a caricare direttamente
     try:
         return json.loads(raw)
     except Exception:
         pass
 
-    # Strategia 2: sanitizza i newline fisici dentro i valori stringa JSON
+    # Strategia 3: sanitizza i newline fisici dentro i valori stringa JSON
     try:
         sanitized = []
         in_string = False
@@ -61,7 +70,7 @@ def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
     except Exception:
         pass
 
-    # Strategia 3: fallback regex per chiavi note (es. FAQ, contratti, etc.)
+    # Strategia 4: fallback regex per chiavi note (es. FAQ, contratti, etc.)
     if expected_keys:
         try:
             result = {}
@@ -75,7 +84,6 @@ def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
                 match = re.search(pattern, raw, re.DOTALL)
                 if match:
                     val = match.group(1)
-                    # Converti i newline letterali o escaped
                     val = val.replace('\\n', '\n').replace('\\r', '')
                     result[key] = val
             if len(result) == len(expected_keys):
@@ -88,6 +96,7 @@ def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
         return json.loads(raw)
     except Exception as e:
         raise ValueError(f"Impossibile parsare JSON: {str(e)} (raw: {raw[:250]}...)")
+
 
 
 
