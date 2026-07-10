@@ -202,8 +202,298 @@ Rispondi solo con il JSON.
     return ContractAnalysisResponse(**result)
 
 
+# ─── Nuovi Modelli per Scadenzario, FAQ, Ricerca e Parcella ───────────────────
+
+class DeadlineRequest(BaseModel):
+    tipo_atto: str          # es. "memoria_171_bis", "appello", "opposizione_decreto_ingiuntivo"
+    data_notifica: str      # YYYY-MM-DD o formato testuale
+
+class DeadlineItem(BaseModel):
+    fase: str
+    giorni: int
+    termine_ultimo: str
+    descrizione: str
+    riferimento_normativo: str
+
+class DeadlineResponse(BaseModel):
+    scadenze: List[DeadlineItem]
+    suggerimenti: List[str]
+
+class FaqRequest(BaseModel):
+    domanda_cliente: str
+    area_legale: str        # es. "famiglia", "lavoro", "sinistro", "locazione"
+    dettagli_caso: str
+
+class FaqResponse(BaseModel):
+    risposta_formale: str
+    risposta_semplice: str
+    consigli_avvocato: str
+
+class ResearchRequest(BaseModel):
+    argomento: str
+    parole_chiave: Optional[str] = ""
+
+class RulingItem(BaseModel):
+    riferimento: str        # es. "Cassazione Civile, Sez. III, Sentenza n. 12345/2024"
+    massima: str            # principio di diritto espresso
+    riassunto: str          # breve sintesi del caso
+    rilevanza: str          # "alta", "media", "bassa"
+
+class ResearchResponse(BaseModel):
+    sentenze: List[RulingItem]
+    sintesi_orientamento: str
+
+class FeeRequest(BaseModel):
+    tipo_procedimento: str   # es. "civile_ordinario", "lavoro", "separazione_consensuale", "penale"
+    valore_causa: str        # es. "fino_26000", "fino_52000", "fino_260000"
+    fasi: List[str]          # es. ["studio", "introduzione", "istruttoria", "decisione"]
+
+class FeeBreakdownItem(BaseModel):
+    fase: str
+    valore_medio: float
+    valore_minimo: float
+    valore_massimo: float
+
+class FeeResponse(BaseModel):
+    dettaglio_fasi: List[FeeBreakdownItem]
+    totale_medio: float
+    cpa: float              # 4%
+    iva: float              # 22%
+    totale_lordo: float
+    spiegazione: str
+
+
+# ─── Endpoint: Scadenzario Processuale ─────────────────────────────────────────
+
+@router.post("/deadlines", response_model=DeadlineResponse)
+async def calculate_deadlines(request: DeadlineRequest, user=Depends(get_current_user)):
+    """
+    Calcola scadenze processuali italiane a partire da una data di notifica o evento.
+    """
+    prompt = f"""{LAWYER_SYSTEM_PROMPT}
+
+Calcola le scadenze processuali italiane relative a:
+- Tipo di atto/procedura: {request.tipo_atto}
+- Data di notifica/decorrenza: {request.data_notifica}
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza testo aggiuntivo) nel seguente formato:
+
+{{
+  "scadenze": [
+    {{
+      "fase": "Descrizione sintetica del termine (es. Deposito prima memoria)",
+      "giorni": 30,
+      "termine_ultimo": "Data stimata calcolata (es. 15 Novembre 2026)",
+      "descrizione": "Spiegazione pratica del termine e cosa depositare",
+      "riferimento_normativo": "es. Art. 171-bis c.p.c."
+    }}
+  ],
+  "suggerimenti": [
+    "Consiglio pratico n.1 per evitare decadenze",
+    "Consiglio n.2"
+  ]
+}}
+
+Assicurati che i calcoli siano allineati con la riforma Cartabia o le normative vigenti. Rispondi solo con il JSON.
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        generation_config=genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=2000,
+            response_mime_type="application/json",
+        )
+    )
+
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        import json, re
+        raw = response.text.strip()
+        if "```" in raw:
+            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+            if match:
+                raw = match.group(1)
+        result = json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore calcolo scadenze: {str(e)}")
+
+    return DeadlineResponse(**result)
+
+
+# ─── Endpoint: FAQ Clienti ─────────────────────────────────────────────────────
+
+@router.post("/faq", response_model=FaqResponse)
+async def generate_faq_response(request: FaqRequest, user=Depends(get_current_user)):
+    """
+    Genera risposte rapide (formali e informali) da inviare ai clienti.
+    """
+    prompt = f"""{LAWYER_SYSTEM_PROMPT}
+
+Un cliente fa questa domanda: "{request.domanda_cliente}"
+Relativa all'area: {request.area_legale}
+Dettagli del caso: {request.dettagli_caso}
+
+Genera tre contenuti per l'avvocato:
+1. Una risposta formale da inviare via Email/PEC (precisa, rassicurante ma tecnicamente corretta).
+2. Una risposta breve ed elementare adatta a WhatsApp/SMS (semplice, diretta, senza tecnicismi).
+3. Consigli strategici ed avvertimenti riservati all'avvocato (cosa chiedere al cliente, che documenti raccogliere).
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza testo aggiuntivo):
+
+{{
+  "risposta_formale": "Testo email...",
+  "risposta_semplice": "Testo breve...",
+  "consigli_avvocato": "Consigli interni per il professionista..."
+}}
+
+Rispondi solo con il JSON.
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        generation_config=genai.GenerationConfig(
+            temperature=0.4,
+            max_output_tokens=3000,
+            response_mime_type="application/json",
+        )
+    )
+
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        import json, re
+        raw = response.text.strip()
+        if "```" in raw:
+            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+            if match:
+                raw = match.group(1)
+        result = json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore generazione risposte: {str(e)}")
+
+    return FaqResponse(**result)
+
+
+# ─── Endpoint: Ricercatore Giurisprudenza ──────────────────────────────────────
+
+@router.post("/research", response_model=ResearchResponse)
+async def legal_research(request: ResearchRequest, user=Depends(get_current_user)):
+    """
+    Simula ricerca giurisprudenziale (Cassazione/TAR) basata su sintesi semantica AI.
+    """
+    keywords_str = f" con parole chiave: {request.parole_chiave}" if request.parole_chiave else ""
+    prompt = f"""{LAWYER_SYSTEM_PROMPT}
+
+Esegui una ricerca giurisprudenziale sintetica su: {request.argomento}{keywords_str}.
+
+Trova le 3 sentenze (Cassazione o TAR) più rilevanti e recenti ed esprimi l'orientamento prevalente delle corti.
+La massima deve contenere il principio fondamentale.
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza testo aggiuntivo):
+
+{{
+  "sintesi_orientamento": "Descrizione dell'orientamento dominante, contrasti giurisprudenziali, tendenze recenti (max 600 caratteri)",
+  "sentenze": [
+    {{
+      "riferimento": "es. Cassazione Civile, Sez. Unite, Sentenza n. 12345/2023",
+      "massima": "Principio di diritto formulato in modo preciso ed esteso",
+      "riassunto": "Breve fatto e svolgimento del processo",
+      "rivelanza": "alta"
+    }}
+  ]
+}}
+
+Rispondi solo con il JSON.
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        generation_config=genai.GenerationConfig(
+            temperature=0.2,
+            max_output_tokens=3500,
+            response_mime_type="application/json",
+        )
+    )
+
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        import json, re
+        raw = response.text.strip()
+        if "```" in raw:
+            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+            if match:
+                raw = match.group(1)
+        result = json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore ricerca giurisprudenziale: {str(e)}")
+
+    return ResearchResponse(**result)
+
+
+# ─── Endpoint: Generatore Parcella ─────────────────────────────────────────────
+
+@router.post("/fee-estimator", response_model=FeeResponse)
+async def estimate_fees(request: FeeRequest, user=Depends(get_current_user)):
+    """
+    Calcola onorario stimato secondo i parametri forensi italiani (D.M. 55/2014, D.M. 147/2022).
+    """
+    fasi_str = ", ".join(request.fasi)
+    prompt = f"""{LAWYER_SYSTEM_PROMPT}
+
+Calcola un preventivo/stima dei compensi professionali forensi secondo i Parametri Ministeriali italiani vigenti per:
+- Procedimento: {request.tipo_procedimento}
+- Scaglione di valore della causa: {request.valore_causa}
+- Fasi richieste: {fasi_str}
+
+Rispondi ESCLUSIVAMENTE con un oggetto JSON valido (senza markdown, senza testo aggiuntivo):
+
+{{
+  "dettaglio_fasi": [
+    {{
+      "fase": "Nome fase (es. Fase di studio della controversia)",
+      "valore_medio": 1200.0,
+      "valore_minimo": 600.0,
+      "valore_massimo": 2400.0
+    }}
+  ],
+  "totale_medio": 4500.0,
+  "cpa": 180.0,
+  "iva": 1029.6,
+  "totale_lordo": 5709.6,
+  "spiegazione": "Breve nota esplicativa sui calcoli applicati, riduzione/aumento medio, spese generali 15% (max 300 caratteri)"
+}}
+
+Assicurati che i valori numerici siano coerenti (IVA = 22% su (totale_medio + CPA 4%), CPA = 4% su totale_medio, totale_lordo = totale_medio + CPA + IVA).
+Rispondi solo con il JSON.
+"""
+
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        generation_config=genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=2000,
+            response_mime_type="application/json",
+        )
+    )
+
+    try:
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        import json, re
+        raw = response.text.strip()
+        if "```" in raw:
+            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+            if match:
+                raw = match.group(1)
+        result = json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore preventivo onorari: {str(e)}")
+
+    return FeeResponse(**result)
+
+
 # ─── Health check ──────────────────────────────────────────────────────────────
 
 @router.get("/status")
 async def lawyer_status():
-    return {"status": "ok", "module": "lawyer", "features": ["draft", "analyze-contract"]}
+    return {"status": "ok", "module": "lawyer", "features": ["draft", "analyze-contract", "deadlines", "faq", "research", "fee-estimator"]}
+

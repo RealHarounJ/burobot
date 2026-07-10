@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase";
 import { api } from "@/lib/api";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
-type Tab = "redattore" | "analisi";
+type Tab = "redattore" | "analisi" | "scadenze" | "faq" | "ricerca" | "parcella";
 
 type TipoAtto =
   | "diffida"
@@ -30,6 +30,53 @@ interface ContractAnalysis {
   punti_chiave: string[];
   valutazione_generale: "favorevole" | "neutro" | "sfavorevole";
   raccomandazioni: string[];
+}
+
+interface DeadlineItem {
+  fase: string;
+  giorni: number;
+  termine_ultimo: string;
+  descrizione: string;
+  riferimento_normativo: string;
+}
+
+interface DeadlineResult {
+  scadenze: DeadlineItem[];
+  suggerimenti: string[];
+}
+
+interface FaqResult {
+  risposta_formale: string;
+  risposta_semplice: string;
+  consigli_avvocato: string;
+}
+
+interface RulingItem {
+  riferimento: string;
+  massima: string;
+  riassunto: string;
+  rilevanza: string;
+}
+
+interface ResearchResult {
+  sentenze: RulingItem[];
+  sintesi_orientamento: string;
+}
+
+interface FeeBreakdownItem {
+  fase: string;
+  valore_medio: number;
+  valore_minimo: number;
+  valore_massimo: number;
+}
+
+interface FeeResult {
+  dettaglio_fasi: FeeBreakdownItem[];
+  totale_medio: number;
+  cpa: number;
+  iva: number;
+  totale_lordo: number;
+  spiegazione: string;
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -79,6 +126,30 @@ export default function AvvocatoPage() {
   const [tipoContratto, setTipoContratto] = useState("generico");
   const [contractResult, setContractResult] = useState<ContractAnalysis | null>(null);
 
+  // Scadenzario state
+  const [tipoAttoScadenze, setTipoAttoScadenze] = useState("memoria_171_bis");
+  const [dataNotifica, setDataNotifica] = useState("");
+  const [deadlineResult, setDeadlineResult] = useState<DeadlineResult | null>(null);
+
+  // FAQ state
+  const [domandaCliente, setDomandaCliente] = useState("");
+  const [areaLegaleFaq, setAreaLegaleFaq] = useState("locazione");
+  const [dettagliCasoFaq, setDettagliCasoFaq] = useState("");
+  const [faqResult, setFaqResult] = useState<FaqResult | null>(null);
+  const [copiedFaqFormale, setCopiedFaqFormale] = useState(false);
+  const [copiedFaqSemplice, setCopiedFaqSemplice] = useState(false);
+
+  // Ricerca state
+  const [argomentoRicerca, setArgomentoRicerca] = useState("");
+  const [paroleChiaveRicerca, setParoleChiaveRicerca] = useState("");
+  const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
+
+  // Parcella state
+  const [tipoProcedimento, setTipoProcedimento] = useState("civile_ordinario");
+  const [valoreCausa, setValoreCausa] = useState("fino_26000");
+  const [fasiParcella, setFasiParcella] = useState<string[]>(["studio", "introduzione", "istruttoria", "decisione"]);
+  const [feeResult, setFeeResult] = useState<FeeResult | null>(null);
+
   // Auth check
   useEffect(() => {
     const supabase = createClient();
@@ -108,8 +179,8 @@ export default function AvvocatoPage() {
         scadenza: scadenza || undefined,
       });
       setDraftResult(result);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Errore durante la redazione.");
+    } catch (err: any) {
+      setError(err.message || "Errore durante la redazione.");
     } finally {
       setLoading(false);
     }
@@ -127,12 +198,96 @@ export default function AvvocatoPage() {
     try {
       const result = await api.analyzeContract(testoContratto, tipoContratto);
       setContractResult(result);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Errore durante l'analisi.");
+    } catch (err: any) {
+      setError(err.message || "Errore durante l'analisi.");
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleCalculateDeadlines(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dataNotifica) {
+      setError("Inserire la data di notifica o di decorrenza del termine.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setDeadlineResult(null);
+    try {
+      const result = await api.calculateDeadlines(tipoAttoScadenze, dataNotifica);
+      setDeadlineResult(result);
+    } catch (err: any) {
+      setError(err.message || "Errore nel calcolo delle scadenze.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGenerateFaq(e: React.FormEvent) {
+    e.preventDefault();
+    if (!domandaCliente || !dettagliCasoFaq) {
+      setError("Compilare sia la domanda che i dettagli del caso.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setFaqResult(null);
+    try {
+      const result = await api.generateFaqResponse(domandaCliente, areaLegaleFaq, dettagliCasoFaq);
+      setFaqResult(result);
+    } catch (err: any) {
+      setError(err.message || "Errore nella generazione delle risposte.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!argomentoRicerca) {
+      setError("Inserire un argomento o un tema di ricerca legale.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setResearchResult(null);
+    try {
+      const result = await api.searchJurisprudence(argomentoRicerca, paroleChiaveRicerca);
+      setResearchResult(result);
+    } catch (err: any) {
+      setError(err.message || "Errore nella ricerca.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleEstimateFees(e: React.FormEvent) {
+    e.preventDefault();
+    if (fasiParcella.length === 0) {
+      setError("Selezionare almeno una fase di cui calcolare i compensi.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setFeeResult(null);
+    try {
+      const result = await api.estimateFees(tipoProcedimento, valoreCausa, fasiParcella);
+      setFeeResult(result);
+    } catch (err: any) {
+      setError(err.message || "Errore nella stima dei compensi.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const toggleFase = (fase: string) => {
+    if (fasiParcella.includes(fase)) {
+      setFasiParcella(fasiParcella.filter(f => f !== fase));
+    } else {
+      setFasiParcella([...fasiParcella, fase]);
+    }
+  };
 
   /* ─── Render ────────────────────────────────────────────────────────────── */
   return (
@@ -145,7 +300,7 @@ export default function AvvocatoPage() {
           <span style={styles.headerIcon}>⚖️</span>
           <div>
             <div style={styles.headerTitle}>BuroBot per Avvocati</div>
-            <div style={styles.headerSub}>Redazione atti · Analisi contratti · Powered by Gemini 2.5</div>
+            <div style={styles.headerSub}>Scadenzari · Parcelle · Atti · Giurisprudenza con Gemini 2.5</div>
           </div>
         </div>
         <div style={styles.headerBadge}>STUDIO PRO</div>
@@ -164,6 +319,30 @@ export default function AvvocatoPage() {
           onClick={() => { setTab("analisi"); setError(""); }}
         >
           🔍 Analisi Contratto
+        </button>
+        <button
+          style={{ ...styles.tabBtn, ...(tab === "scadenze" ? styles.tabActive : {}) }}
+          onClick={() => { setTab("scadenze"); setError(""); }}
+        >
+          ⏰ Scadenzario
+        </button>
+        <button
+          style={{ ...styles.tabBtn, ...(tab === "faq" ? styles.tabActive : {}) }}
+          onClick={() => { setTab("faq"); setError(""); }}
+        >
+          💬 Risposta FAQ
+        </button>
+        <button
+          style={{ ...styles.tabBtn, ...(tab === "ricerca" ? styles.tabActive : {}) }}
+          onClick={() => { setTab("ricerca"); setError(""); }}
+        >
+          🔎 Giurisprudenza
+        </button>
+        <button
+          style={{ ...styles.tabBtn, ...(tab === "parcella" ? styles.tabActive : {}) }}
+          onClick={() => { setTab("parcella"); setError(""); }}
+        >
+          📋 Parcella
         </button>
       </div>
 
@@ -224,7 +403,7 @@ export default function AvvocatoPage() {
               {!draftResult && !loading && (
                 <div style={styles.emptyState}>
                   <div style={styles.emptyIcon}>📄</div>
-                  <div>Compila il modulo e clicca "Redigi atto".<br/>L&apos;AI genererà un atto formalmente corretto in pochi secondi.</div>
+                  <div>Compila il modulo e clicca &quot;Redigi atto&quot;.<br/>L&apos;AI genererà un atto formalmente corretto in pochi secondi.</div>
                 </div>
               )}
               {loading && (
@@ -355,6 +534,310 @@ export default function AvvocatoPage() {
             </div>
           </div>
         )}
+
+        {/* ── TAB 3: SCADENZARIO PROCESSUALE ── */}
+        {tab === "scadenze" && (
+          <div style={styles.twoCol}>
+            {/* Form */}
+            <form onSubmit={handleCalculateDeadlines} style={styles.card}>
+              <div style={styles.cardTitle}>Calcolo Scadenze</div>
+
+              <label style={styles.label}>Procedura / Atto di riferimento</label>
+              <select style={styles.select} value={tipoAttoScadenze} onChange={e => setTipoAttoScadenze(e.target.value)}>
+                <option value="memoria_171_bis" style={{ background: "#1e293b", color: "#f0f4ff" }}>Termini di trattazione scritta ex art. 171-bis c.p.c.</option>
+                <option value="memorie_183_vecchio" style={{ background: "#1e293b", color: "#f0f4ff" }}>Memorie ex art. 183 c.6 c.p.c. (Vecchio Rito)</option>
+                <option value="appello_civile" style={{ background: "#1e293b", color: "#f0f4ff" }}>Termine per appello civile (art. 325 e 327 c.p.c.)</option>
+                <option value="opposizione_decreto_ingiuntivo" style={{ background: "#1e293b", color: "#f0f4ff" }}>Opposizione a decreto ingiuntivo (40 giorni)</option>
+                <option value="ricorso_lavoro" style={{ background: "#1e293b", color: "#f0f4ff" }}>Costituzione convenuto controversia lavoro (art. 416 c.p.c.)</option>
+                <option value="precetto" style={{ background: "#1e293b", color: "#f0f4ff" }}>Termine di efficacia del precetto (90 giorni)</option>
+              </select>
+
+              <label style={styles.label}>Data di notifica / evento iniziale *</label>
+              <input type="date" style={styles.input} value={dataNotifica} onChange={e => setDataNotifica(e.target.value)} />
+
+              <button type="submit" style={styles.btnPrimary} disabled={loading || !dataNotifica}>
+                {loading ? "Calcolo in corso..." : "⏰ Calcola scadenze"}
+              </button>
+            </form>
+
+            {/* Result */}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Scadenzario Calcolato</div>
+              {!deadlineResult && !loading && (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📅</div>
+                  <div>Inserisci la data iniziale ed elabora lo scadenzario.<br/>L&apos;AI calcolerà tutti i termini del rito.</div>
+                </div>
+              )}
+              {loading && (
+                <div style={styles.emptyState}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+                  <div>Elaborazione scadenze in corso...</div>
+                </div>
+              )}
+              {deadlineResult && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    {deadlineResult.scadenze.map((s, i) => (
+                      <div key={i} style={styles.deadlineCard}>
+                        <div style={styles.deadlineHeader}>
+                          <span style={styles.deadlineTitle}>{s.fase}</span>
+                          <span style={styles.deadlineDate}>{s.termine_ultimo}</span>
+                        </div>
+                        <div style={styles.deadlineText}>{s.descrizione}</div>
+                        <div style={styles.deadlineMeta}>Riferimento: {s.riferimento_normativo} ({s.giorni} giorni)</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={styles.noteBox}>
+                    <div style={styles.noteTitle}>💡 Avvertenze procedurali</div>
+                    {deadlineResult.suggerimenti.map((s, i) => (
+                      <div key={i} style={{ fontSize: 12, color: "#b45309", marginBottom: 4 }}>• {s}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 4: RISPOSTA FAQ ── */}
+        {tab === "faq" && (
+          <div style={styles.twoCol}>
+            {/* Form */}
+            <form onSubmit={handleGenerateFaq} style={styles.card}>
+              <div style={styles.cardTitle}>Domanda del Cliente</div>
+
+              <label style={styles.label}>Area legale</label>
+              <select style={styles.select} value={areaLegaleFaq} onChange={e => setAreaLegaleFaq(e.target.value)}>
+                <option value="locazione" style={{ background: "#1e293b", color: "#f0f4ff" }}>Locazione e sfratti</option>
+                <option value="lavoro" style={{ background: "#1e293b", color: "#f0f4ff" }}>Diritto del lavoro</option>
+                <option value="famiglia" style={{ background: "#1e293b", color: "#f0f4ff" }}>Separazioni e divorzi</option>
+                <option value="sinistro" style={{ background: "#1e293b", color: "#f0f4ff" }}>Infortunistica stradale</option>
+                <option value="condominio" style={{ background: "#1e293b", color: "#f0f4ff" }}>Questioni condominiali</option>
+              </select>
+
+              <label style={styles.label}>Domanda del cliente *</label>
+              <textarea style={styles.textarea} rows={3} placeholder="Es. Quanto mi costa fare causa e quanto dura?" value={domandaCliente} onChange={e => setDomandaCliente(e.target.value)} />
+
+              <label style={styles.label}>Dettagli sintetici del caso *</label>
+              <textarea style={styles.textarea} rows={4} placeholder="Inserisci brevissimi dettagli (es. inquilino non paga da 3 mesi, canone €600/mese, contratto registrato...)" value={dettagliCasoFaq} onChange={e => setDettagliCasoFaq(e.target.value)} />
+
+              <button type="submit" style={styles.btnPrimary} disabled={loading || !domandaCliente || !dettagliCasoFaq}>
+                {loading ? "Generazione risposte..." : "💬 Genera risposte"}
+              </button>
+            </form>
+
+            {/* Result */}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Risposte per il Cliente</div>
+              {!faqResult && !loading && (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>✉️</div>
+                  <div>Inserisci la domanda e genera le risposte.<br/>L&apos;AI scriverà un&apos;email formale e un messaggio WhatsApp pronto.</div>
+                </div>
+              )}
+              {loading && (
+                <div style={styles.emptyState}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>✍️</div>
+                  <div>Generazione risposte personalizzate...</div>
+                </div>
+              )}
+              {faqResult && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <div style={styles.sectionLabel}>📧 Bozza Email Formale</div>
+                    <div style={styles.boxRisposta}>{faqResult.risposta_formale}</div>
+                    <button style={styles.btnSecondary} onClick={() => copyToClipboard(faqResult.risposta_formale, setCopiedFaqFormale)}>
+                      {copiedFaqFormale ? "✅ Copiato!" : "📋 Copia Email"}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div style={styles.sectionLabel}>💬 Testo Semplice per WhatsApp / SMS</div>
+                    <div style={styles.boxRisposta}>{faqResult.risposta_semplice}</div>
+                    <button style={styles.btnSecondary} onClick={() => copyToClipboard(faqResult.risposta_semplice, setCopiedFaqSemplice)}>
+                      {copiedFaqSemplice ? "✅ Copiato!" : "📋 Copia Messaggio"}
+                    </button>
+                  </div>
+
+                  <div style={styles.noteBox}>
+                    <div style={styles.noteTitle}>⚠️ Note strategiche per l&apos;avvocato</div>
+                    <div style={styles.noteText}>{faqResult.consigli_avvocato}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 5: GIURISPRUDENZA ── */}
+        {tab === "ricerca" && (
+          <div style={styles.twoCol}>
+            {/* Form */}
+            <form onSubmit={handleSearch} style={styles.card}>
+              <div style={styles.cardTitle}>Ricerca di Precedenti</div>
+
+              <label style={styles.label}>Tema della ricerca / Quesito legale *</label>
+              <textarea style={styles.textarea} rows={4} placeholder="Es. Responsabilità del medico in caso di consenso informato incompleto o invalido" value={argomentoRicerca} onChange={e => setArgomentoRicerca(e.target.value)} />
+
+              <label style={styles.label}>Parole chiave o Riferimenti normativi (opzionale)</label>
+              <input style={styles.input} placeholder="Es. Cassazione, art. 32 Cost., consenso informato" value={paroleChiaveRicerca} onChange={e => setParoleChiaveRicerca(e.target.value)} />
+
+              <button type="submit" style={styles.btnPrimary} disabled={loading || !argomentoRicerca}>
+                {loading ? "Ricerca in corso..." : "🔍 Cerca giurisprudenza"}
+              </button>
+            </form>
+
+            {/* Result */}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Risultati Giurisprudenza</div>
+              {!researchResult && !loading && (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>🔎</div>
+                  <div>Inserisci il quesito per trovare l&apos;orientamento delle corti.<br/>Gemini analizzerà sentenze rilevanti.</div>
+                </div>
+              )}
+              {loading && (
+                <div style={styles.emptyState}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
+                  <div>Analisi sentenze e massime in corso...</div>
+                </div>
+              )}
+              {researchResult && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={styles.sintesiOrientamentoBox}>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Orientamento Prevalente:</div>
+                    <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.6 }}>{researchResult.sintesi_orientamento}</div>
+                  </div>
+
+                  {researchResult.sentenze.map((s, i) => (
+                    <div key={i} style={styles.sentenzaCard}>
+                      <div style={styles.sentenzaRef}>{s.riferimento}</div>
+                      <div style={styles.sentenzaMassima}><strong>Massima:</strong> {s.massima}</div>
+                      <div style={styles.sentenzaRiassunto}><strong>Caso:</strong> {s.riassunto}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TAB 6: PARCELLA ── */}
+        {tab === "parcella" && (
+          <div style={styles.twoCol}>
+            {/* Form */}
+            <form onSubmit={handleEstimateFees} style={styles.card}>
+              <div style={styles.cardTitle}>Preventivatore Forense</div>
+
+              <label style={styles.label}>Tipo di procedimento</label>
+              <select style={styles.select} value={tipoProcedimento} onChange={e => setTipoProcedimento(e.target.value)}>
+                <option value="civile_ordinario" style={{ background: "#1e293b", color: "#f0f4ff" }}>Giudizio Civile Ordinario (Tribunale)</option>
+                <option value="lavoro" style={{ background: "#1e293b", color: "#f0f4ff" }}>Diritto del Lavoro (I Grado)</option>
+                <option value="separazione_consensuale" style={{ background: "#1e293b", color: "#f0f4ff" }}>Separazione Consensuale</option>
+                <option value="penale" style={{ background: "#1e293b", color: "#f0f4ff" }}>Giudizio Penale (Tribunale Monocratico)</option>
+                <option value="stragiudiziale" style={{ background: "#1e293b", color: "#f0f4ff" }}>Attività Stragiudiziale</option>
+              </select>
+
+              <label style={styles.label}>Scaglione di valore</label>
+              <select style={styles.select} value={valoreCausa} onChange={e => setValoreCausa(e.target.value)}>
+                <option value="fino_5200" style={{ background: "#1e293b", color: "#f0f4ff" }}>Da €0,01 a €5.200,00</option>
+                <option value="fino_26000" style={{ background: "#1e293b", color: "#f0f4ff" }}>Da €5.200,01 a €26.000,00</option>
+                <option value="fino_52000" style={{ background: "#1e293b", color: "#f0f4ff" }}>Da €26.000,01 a €52.000,00</option>
+                <option value="fino_260000" style={{ background: "#1e293b", color: "#f0f4ff" }}>Da €52.000,01 a €260.000,00</option>
+                <option value="oltre_260000" style={{ background: "#1e293b", color: "#f0f4ff" }}>Oltre €260.000,00</option>
+              </select>
+
+              <label style={styles.label}>Fasi da includere</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                {[
+                  { id: "studio", label: "Fase 1: Studio della controversia" },
+                  { id: "introduzione", label: "Fase 2: Introduzione del giudizio" },
+                  { id: "istruttoria", label: "Fase 3: Istruttoria / Trattazione" },
+                  { id: "decisione", label: "Fase 4: Decisione" }
+                ].map(f => (
+                  <label key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer" }}>
+                    <input type="checkbox" checked={fasiParcella.includes(f.id)} onChange={() => toggleFase(f.id)} />
+                    {f.label}
+                  </label>
+                ))}
+              </div>
+
+              <button type="submit" style={styles.btnPrimary} disabled={loading || fasiParcella.length === 0}>
+                {loading ? "Elaborazione parcella..." : "📊 Calcola preventivo"}
+              </button>
+            </form>
+
+            {/* Result */}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Preventivo Compensato</div>
+              {!feeResult && !loading && (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📊</div>
+                  <div>Seleziona lo scaglione e le fasi per elaborare il preventivo.<br/>I calcoli seguono i Parametri Ministeriali italiani.</div>
+                </div>
+              )}
+              {loading && (
+                <div style={styles.emptyState}>
+                  <div style={{ fontSize: 32, marginBottom: 12 }}>💸</div>
+                  <div>Generazione preventivo in corso...</div>
+                </div>
+              )}
+              {feeResult && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Tabella Fasi */}
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Fase</th>
+                        <th style={styles.th}>Min</th>
+                        <th style={styles.th}>Medio</th>
+                        <th style={styles.th}>Max</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feeResult.dettaglio_fasi.map((f, i) => (
+                        <tr key={i} style={styles.tr}>
+                          <td style={styles.td}>{f.fase}</td>
+                          <td style={styles.td}>€{f.valore_minimo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</td>
+                          <td style={{ ...styles.td, fontWeight: "bold", color: "#60a5fa" }}>€{f.valore_medio.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</td>
+                          <td style={styles.td}>€{f.valore_massimo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Riepilogo Totali */}
+                  <div style={styles.riepilogoParcella}>
+                    <div style={styles.parcellaRow}>
+                      <span>Compensi Professionali (Medio):</span>
+                      <strong>€{feeResult.totale_medio.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div style={styles.parcellaRow}>
+                      <span>C.P.A. (4%):</span>
+                      <span>€{feeResult.cpa.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={styles.parcellaRow}>
+                      <span>I.V.A. (22%):</span>
+                      <span>€{feeResult.iva.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ ...styles.parcellaRow, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, marginTop: 4, fontSize: 16, color: "#60a5fa" }}>
+                      <span>Totale Lordo Stimato:</span>
+                      <strong>€{feeResult.totale_lordo.toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                  </div>
+
+                  <div style={styles.noteBox}>
+                    <div style={styles.noteTitle}>📌 Note sui compensi</div>
+                    <div style={styles.noteText}>{feeResult.spiegazione}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -423,6 +906,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0 28px",
     background: "rgba(13,17,23,0.8)",
     borderBottom: "1px solid rgba(255,255,255,0.07)",
+    overflowX: "auto" as const,
   },
   tabBtn: {
     padding: "14px 20px",
@@ -435,6 +919,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     transition: "all 0.15s",
     marginBottom: -1,
+    whiteSpace: "nowrap" as const,
   },
   tabActive: {
     color: "#60a5fa",
@@ -658,5 +1143,112 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#475569",
     textAlign: "right" as const,
     marginTop: -8,
+  },
+
+  // Nuovi Stili aggiuntivi
+  deadlineCard: {
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    padding: "14px 16px",
+    marginBottom: 10,
+  },
+  deadlineHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  deadlineTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#f0f4ff",
+  },
+  deadlineDate: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#f87171",
+  },
+  deadlineText: {
+    fontSize: 12,
+    color: "#94a3b8",
+    lineHeight: 1.5,
+    marginBottom: 6,
+  },
+  deadlineMeta: {
+    fontSize: 10,
+    color: "#475569",
+  },
+  boxRisposta: {
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    padding: 16,
+    fontSize: 12,
+    lineHeight: 1.7,
+    color: "#cbd5e1",
+    fontFamily: "inherit",
+    whiteSpace: "pre-wrap" as const,
+    maxHeight: 220,
+    overflowY: "auto" as const,
+    marginBottom: 8,
+  },
+  sintesiOrientamentoBox: {
+    background: "rgba(99,102,241,0.07)",
+    border: "1px solid rgba(99,102,241,0.2)",
+    borderRadius: 10,
+    padding: 16,
+  },
+  sentenzaCard: {
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.06)",
+    borderRadius: 10,
+    padding: 16,
+  },
+  sentenzaRef: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#60a5fa",
+    marginBottom: 6,
+  },
+  sentenzaMassima: {
+    fontSize: 12,
+    color: "#cbd5e1",
+    lineHeight: 1.6,
+    marginBottom: 6,
+  },
+  sentenzaRiassunto: {
+    fontSize: 12,
+    color: "#94a3b8",
+    lineHeight: 1.5,
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse" as const,
+    fontSize: 12,
+  },
+  th: {
+    textAlign: "left" as const,
+    padding: 10,
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    color: "#64748b",
+  },
+  tr: {
+    borderBottom: "1px solid rgba(255,255,255,0.04)",
+  },
+  td: {
+    padding: 10,
+    color: "#cbd5e1",
+  },
+  riepilogoParcella: {
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    padding: 16,
+  },
+  parcellaRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: 13,
+    marginBottom: 6,
   },
 };

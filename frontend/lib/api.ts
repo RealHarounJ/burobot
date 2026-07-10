@@ -218,4 +218,61 @@ export const api = {
     }
     return res.json();
   },
+
+  async calculateDeadlines(tipo_atto: string, data_notifica: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/deadlines`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo_atto, data_notifica }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore nel calcolo scadenze" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async generateFaqResponse(domanda_cliente: string, area_legale: string, dettagli_caso: string) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/faq`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ domanda_cliente, area_legale, dettagli_caso }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore nella generazione FAQ" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async searchJurisprudence(argomento: string, parole_chiave = "") {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/research`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ argomento, parole_chiave }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore nella ricerca legale" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
+
+  async estimateFees(tipo_procedimento: string, valore_causa: string, fasi: string[]) {
+    const headers = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/lawyer/fee-estimator`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo_procedimento, valore_causa, fasi }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Errore nel calcolo del preventivo" }));
+      throw new Error(err.detail);
+    }
+    return res.json();
+  },
 };
+
