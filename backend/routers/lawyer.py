@@ -21,6 +21,22 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY", "").strip())
 import json
 import re
 
+MEMORY_LOGS = []
+
+def log_message(msg: str):
+    global MEMORY_LOGS
+    MEMORY_LOGS.append(msg)
+    if len(MEMORY_LOGS) > 100:
+        MEMORY_LOGS.pop(0)
+    print(msg)
+
+@router.get("/debug-logs")
+async def get_debug_logs(secret: str = ""):
+    if secret != "lawyer_debug_secret_1122":
+        return {"status": "unauthorized"}
+    return {"logs": MEMORY_LOGS}
+
+
 def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
     """
     Rileva e ripara errori di sintassi JSON usando json-repair e regex-fallback.
@@ -152,6 +168,7 @@ async def draft_legal_document(request: DraftRequest, user=Depends(get_current_u
     Redige automaticamente un atto legale (diffida, contratto, lettera formale)
     sulla base dei dettagli forniti dall'avvocato.
     """
+    log_message(f"[DRAFT] Request received from user={user.email if hasattr(user, 'email') else 'unknown'} for tipo_atto={request.tipo_atto}")
     tipo_map = {
         "diffida": "una lettera di diffida formale",
         "messa_in_mora": "una lettera di messa in mora ai sensi dell'art. 1219 c.c.",
@@ -195,9 +212,12 @@ Dopo l'atto, aggiungi una sezione separata con il titolo "NOTE PER L'AVVOCATO:" 
         full_text = response.text.strip()
     except Exception as e:
         err = str(e)
+        log_message(f"[DRAFT] ERROR: {err}")
         if "429" in err or "quota" in err.lower():
             raise HTTPException(status_code=429, detail="Quota AI superata. Riprovare tra un minuto.")
         raise HTTPException(status_code=500, detail=f"Errore durante la redazione: {err}")
+
+    log_message("[DRAFT] Success!")
 
     # Separa atto e note per l'avvocato
     if "NOTE PER L'AVVOCATO:" in full_text:
@@ -218,6 +238,7 @@ async def analyze_contract(request: ContractAnalysisRequest, user=Depends(get_cu
     """
     Analizza un contratto e identifica clausole rischiose, mancanti e punti chiave.
     """
+    log_message(f"[ANALYZE-CONTRACT] Request received for tipo_contratto={request.tipo_contratto}")
     testo_troncato = request.testo_contratto[:12000]
 
     prompt = f"""{LAWYER_SYSTEM_PROMPT}
@@ -274,9 +295,12 @@ Rispondi solo con il JSON.
         )
     except Exception as e:
         err = str(e)
+        log_message(f"[ANALYZE-CONTRACT] ERROR: {err}")
         if "429" in err or "quota" in err.lower():
             raise HTTPException(status_code=429, detail="Quota AI superata. Riprovare tra un minuto.")
         raise HTTPException(status_code=500, detail=f"Errore durante l'analisi: {err}")
+
+    log_message("[ANALYZE-CONTRACT] Success!")
 
     return ContractAnalysisResponse(**result)
 
@@ -350,6 +374,7 @@ async def calculate_deadlines(request: DeadlineRequest, user=Depends(get_current
     """
     Calcola scadenze processuali italiane a partire da una data di notifica o evento.
     """
+    log_message(f"[DEADLINES] Request received for tipo_atto={request.tipo_atto}, data_notifica={request.data_notifica}")
     prompt = f"""{LAWYER_SYSTEM_PROMPT}
 
 Calcola le scadenze processuali italiane relative a:
@@ -390,7 +415,10 @@ Assicurati che i calcoli siano allineati con la riforma Cartabia o le normative 
         response = await asyncio.to_thread(model.generate_content, prompt)
         result = parse_json_robustly(response.text, ["scadenze", "suggerimenti"])
     except Exception as e:
+        log_message(f"[DEADLINES] ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore calcolo scadenze: {str(e)}")
+
+    log_message("[DEADLINES] Success!")
 
     return DeadlineResponse(**result)
 
@@ -402,6 +430,7 @@ async def generate_faq_response(request: FaqRequest, user=Depends(get_current_us
     """
     Genera risposte rapide (formali e informali) da inviare ai clienti.
     """
+    log_message(f"[FAQ] Request received for area_legale={request.area_legale}")
     prompt = f"""{LAWYER_SYSTEM_PROMPT}
 
 Un cliente fa questa domanda: "{request.domanda_cliente}"
@@ -437,7 +466,10 @@ Rispondi solo con il JSON.
         response = await asyncio.to_thread(model.generate_content, prompt)
         result = parse_json_robustly(response.text, ["risposta_formale", "risposta_semplice", "consigli_avvocato"])
     except Exception as e:
+        log_message(f"[FAQ] ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore generazione risposte: {str(e)}")
+
+    log_message("[FAQ] Success!")
 
     return FaqResponse(**result)
 
@@ -449,6 +481,7 @@ async def legal_research(request: ResearchRequest, user=Depends(get_current_user
     """
     Simula ricerca giurisprudenziale (Cassazione/TAR) basata su sintesi semantica AI.
     """
+    log_message(f"[RESEARCH] Request received for argomento={request.argomento[:50]}")
     keywords_str = f" con parole chiave: {request.parole_chiave}" if request.parole_chiave else ""
     prompt = f"""{LAWYER_SYSTEM_PROMPT}
 
@@ -487,7 +520,10 @@ Rispondi solo con il JSON.
         response = await asyncio.to_thread(model.generate_content, prompt)
         result = parse_json_robustly(response.text, ["sintesi_orientamento", "sentenze"])
     except Exception as e:
+        log_message(f"[RESEARCH] ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore ricerca giurisprudenziale: {str(e)}")
+
+    log_message("[RESEARCH] Success!")
 
     return ResearchResponse(**result)
 
@@ -499,6 +535,7 @@ async def estimate_fees(request: FeeRequest, user=Depends(get_current_user)):
     """
     Calcola onorario stimato secondo i parametri forensi italiani (D.M. 55/2014, D.M. 147/2022).
     """
+    log_message(f"[FEE-ESTIMATOR] Request received for tipo_procedimento={request.tipo_procedimento}, valore={request.valore_causa}")
     fasi_str = ", ".join(request.fasi)
     prompt = f"""{LAWYER_SYSTEM_PROMPT}
 
@@ -545,7 +582,10 @@ Rispondi solo con il JSON.
             ["dettaglio_fasi", "totale_medio", "cpa", "iva", "totale_lordo", "spiegazione"]
         )
     except Exception as e:
+        log_message(f"[FEE-ESTIMATOR] ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Errore preventivo onorari: {str(e)}")
+
+    log_message("[FEE-ESTIMATOR] Success!")
 
     return FeeResponse(**result)
 
