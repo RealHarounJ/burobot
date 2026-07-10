@@ -1,6 +1,11 @@
 import { createClient } from "./supabase";
 
-const API_URL = "https://burobot-production-4c5a.up.railway.app";
+// Usa il proxy locale /api_backend sul browser per evitare blocchi CORS/Adblocker (Brave Shields)
+const API_URL = typeof window !== "undefined" 
+  ? "/api_backend" 
+  : "https://burobot-production-4c5a.up.railway.app";
+
+
 
 async function getAuthHeader(): Promise<Record<string, string>> {
   const supabase = createClient();

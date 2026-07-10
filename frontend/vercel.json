@@ -5,5 +5,11 @@
   "installCommand": "npm install",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://burobot-production-4c5a.up.railway.app"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api_backend/:path*",
+      "destination": "https://burobot-production-4c5a.up.railway.app/:path*"
+    }
+  ]
 }
