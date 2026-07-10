@@ -579,22 +579,22 @@ const styles: Record<string, React.CSSProperties> = {
     overflowY: "auto" as const,
   },
   noteBox: {
-    background: "rgba(245,158,11,0.07)",
-    border: "1px solid rgba(245,158,11,0.2)",
+    background: "rgba(245,158,11,0.10)",
+    border: "1px solid rgba(245,158,11,0.35)",
     borderRadius: 10,
     padding: "14px 16px",
   },
   noteTitle: {
     fontSize: 11,
     fontWeight: 700,
-    color: "#fbbf24",
+    color: "#d97706",
     textTransform: "uppercase" as const,
     letterSpacing: "0.6px",
     marginBottom: 8,
   },
   noteText: {
     fontSize: 12,
-    color: "#fde68a",
+    color: "#b45309",
     lineHeight: 1.65,
   },
   valutazioneBox: {
