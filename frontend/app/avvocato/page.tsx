@@ -186,7 +186,7 @@ export default function AvvocatoPage() {
               <label style={styles.label}>Tipo di atto *</label>
               <select style={styles.select} value={tipoAtto} onChange={e => setTipoAtto(e.target.value as TipoAtto)}>
                 {TIPI_ATTO.map(t => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                  <option key={t.value} value={t.value} style={{ background: "#1e293b", color: "#f0f4ff" }}>{t.label}</option>
                 ))}
               </select>
 
@@ -501,7 +501,7 @@ const styles: Record<string, React.CSSProperties> = {
   select: {
     width: "100%",
     padding: "10px 12px",
-    background: "rgba(255,255,255,0.04)",
+    background: "#1e293b",
     border: "1px solid rgba(255,255,255,0.09)",
     borderRadius: 8,
     color: "#f0f4ff",
