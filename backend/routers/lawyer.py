@@ -21,9 +21,9 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY", "").strip())
 import json
 import re
 
-def parse_json_robustly(raw: str) -> dict:
+def parse_json_robustly(raw: str, expected_keys: List[str] = None) -> dict:
     """
-    Rimuove markdown e sanitizza newline non escaped all'interno delle stringhe JSON.
+    Rimuove markdown, sanitizza newline e fornisce un fallback regex per chiavi specifiche in caso di virgolette non escaped.
     """
     raw = raw.strip()
     # Rimuovi markdown blocks
@@ -58,8 +58,37 @@ def parse_json_robustly(raw: str) -> dict:
             else:
                 sanitized.append(char)
         return json.loads("".join(sanitized))
+    except Exception:
+        pass
+
+    # Strategia 3: fallback regex per chiavi note (es. FAQ, contratti, etc.)
+    if expected_keys:
+        try:
+            result = {}
+            for i, key in enumerate(expected_keys):
+                if i < len(expected_keys) - 1:
+                    next_key = expected_keys[i+1]
+                    pattern = rf'"{key}"\s*:\s*"(.*?)"\s*(?=,\s*"{next_key}"\s*:)'
+                else:
+                    pattern = rf'"{key}"\s*:\s*"(.*?)"\s*(?=\s*\}})'
+                    
+                match = re.search(pattern, raw, re.DOTALL)
+                if match:
+                    val = match.group(1)
+                    # Converti i newline letterali o escaped
+                    val = val.replace('\\n', '\n').replace('\\r', '')
+                    result[key] = val
+            if len(result) == len(expected_keys):
+                return result
+        except Exception:
+            pass
+
+    # Se tutto fallisce, solleva l'errore originario
+    try:
+        return json.loads(raw)
     except Exception as e:
-        raise ValueError(f"Impossibile parsare JSON: {str(e)} (raw: {raw[:200]}...)")
+        raise ValueError(f"Impossibile parsare JSON: {str(e)} (raw: {raw[:250]}...)")
+
 
 
 # ─── Modelli ───────────────────────────────────────────────────────────────────
@@ -230,7 +259,10 @@ Rispondi solo con il JSON.
         response = await asyncio.to_thread(model.generate_content, prompt)
         if not response.candidates:
             raise ValueError("Risposta bloccata dai filtri di sicurezza.")
-        result = parse_json_robustly(response.text)
+        result = parse_json_robustly(
+            response.text, 
+            ["sommario", "clausole_rischiose", "clausole_mancanti", "punti_chiave", "valutazione_generale", "raccomandazioni"]
+        )
     except Exception as e:
         err = str(e)
         if "429" in err or "quota" in err.lower():
@@ -347,7 +379,7 @@ Assicurati che i calcoli siano allineati con la riforma Cartabia o le normative 
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        result = parse_json_robustly(response.text)
+        result = parse_json_robustly(response.text, ["scadenze", "suggerimenti"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore calcolo scadenze: {str(e)}")
 
@@ -394,7 +426,7 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        result = parse_json_robustly(response.text)
+        result = parse_json_robustly(response.text, ["risposta_formale", "risposta_semplice", "consigli_avvocato"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore generazione risposte: {str(e)}")
 
@@ -444,7 +476,7 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        result = parse_json_robustly(response.text)
+        result = parse_json_robustly(response.text, ["sintesi_orientamento", "sentenze"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore ricerca giurisprudenziale: {str(e)}")
 
@@ -499,7 +531,10 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        result = parse_json_robustly(response.text)
+        result = parse_json_robustly(
+            response.text, 
+            ["dettaglio_fasi", "totale_medio", "cpa", "iva", "totale_lordo", "spiegazione"]
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore preventivo onorari: {str(e)}")
 
