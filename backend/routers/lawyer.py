@@ -18,7 +18,52 @@ router = APIRouter()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", "").strip())
 
+import json
+import re
+
+def parse_json_robustly(raw: str) -> dict:
+    """
+    Rimuove markdown e sanitizza newline non escaped all'interno delle stringhe JSON.
+    """
+    raw = raw.strip()
+    # Rimuovi markdown blocks
+    if "```" in raw:
+        match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
+        if match:
+            raw = match.group(1)
+    raw = raw.strip()
+    
+    # Sostituisci apostrofi o virgolette escape errati
+    raw = raw.replace(r"\'", "'").replace("\\'", "'")
+    
+    # Strategia 1: prova a caricare direttamente
+    try:
+        return json.loads(raw)
+    except Exception:
+        pass
+
+    # Strategia 2: sanitizza i newline fisici dentro i valori stringa JSON
+    try:
+        sanitized = []
+        in_string = False
+        escape = False
+        for char in raw:
+            if char == '"' and not escape:
+                in_string = not in_string
+            escape = (char == '\\' and not escape)
+            if char == '\n' and in_string:
+                sanitized.append('\\n')
+            elif char == '\r':
+                continue
+            else:
+                sanitized.append(char)
+        return json.loads("".join(sanitized))
+    except Exception as e:
+        raise ValueError(f"Impossibile parsare JSON: {str(e)} (raw: {raw[:200]}...)")
+
+
 # ─── Modelli ───────────────────────────────────────────────────────────────────
+
 
 class DraftRequest(BaseModel):
     tipo_atto: str          # es. "diffida", "contratto_locazione", "lettera_messa_in_mora"
@@ -185,14 +230,7 @@ Rispondi solo con il JSON.
         response = await asyncio.to_thread(model.generate_content, prompt)
         if not response.candidates:
             raise ValueError("Risposta bloccata dai filtri di sicurezza.")
-        import json, re
-        raw = response.text.strip()
-        # Rimuovi eventuali markdown code blocks
-        if "```" in raw:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
-            if match:
-                raw = match.group(1)
-        result = json.loads(raw)
+        result = parse_json_robustly(response.text)
     except Exception as e:
         err = str(e)
         if "429" in err or "quota" in err.lower():
@@ -200,6 +238,7 @@ Rispondi solo con il JSON.
         raise HTTPException(status_code=500, detail=f"Errore durante l'analisi: {err}")
 
     return ContractAnalysisResponse(**result)
+
 
 
 # ─── Nuovi Modelli per Scadenzario, FAQ, Ricerca e Parcella ───────────────────
@@ -308,13 +347,7 @@ Assicurati che i calcoli siano allineati con la riforma Cartabia o le normative 
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        import json, re
-        raw = response.text.strip()
-        if "```" in raw:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
-            if match:
-                raw = match.group(1)
-        result = json.loads(raw)
+        result = parse_json_robustly(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore calcolo scadenze: {str(e)}")
 
@@ -361,13 +394,7 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        import json, re
-        raw = response.text.strip()
-        if "```" in raw:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
-            if match:
-                raw = match.group(1)
-        result = json.loads(raw)
+        result = parse_json_robustly(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore generazione risposte: {str(e)}")
 
@@ -417,13 +444,7 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        import json, re
-        raw = response.text.strip()
-        if "```" in raw:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
-            if match:
-                raw = match.group(1)
-        result = json.loads(raw)
+        result = parse_json_robustly(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore ricerca giurisprudenziale: {str(e)}")
 
@@ -478,13 +499,7 @@ Rispondi solo con il JSON.
 
     try:
         response = await asyncio.to_thread(model.generate_content, prompt)
-        import json, re
-        raw = response.text.strip()
-        if "```" in raw:
-            match = re.search(r'```(?:json)?\s*({.*?})\s*```', raw, re.DOTALL)
-            if match:
-                raw = match.group(1)
-        result = json.loads(raw)
+        result = parse_json_robustly(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore preventivo onorari: {str(e)}")
 
